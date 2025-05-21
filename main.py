@@ -143,6 +143,9 @@ class Agent:
     system_prompt: str
     llm: BaseLLM  # ref to predefined class
 
+    def run_turn(self):
+        pass
+
 
 class Overseer(Agent):
     # tree manager, trimmer and grower - independent of tree structure
@@ -152,7 +155,19 @@ class Overseer(Agent):
 class Manager(Agent):
     # tree node - dispatches sub-managers and workers
     type: Literal["manager"] = "manager"
-    children: list = []
+    children: list[Agent] = []
+
+    def run_turn_recurse(self):
+        # this is only an approximation of inverse bfs
+        # the primary point is to execute all workers before the managers
+        for child in self.children:
+            if isinstance(child, Manager):
+                child.run_turn_recurse()
+            else:
+                # Worker, verifier or overseer
+                # verifiers and overseers may be children or peers of event initiators
+                child.run_turn()
+        self.run_turn()
 
 
 class Environment:
@@ -177,6 +192,7 @@ root_manager = Manager()
 
 
 def main():
+    root_manager.run_turn_recurse()
     return
 
 
