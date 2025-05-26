@@ -8,6 +8,9 @@ class Manager(Agent):
     type: Literal["manager"] = "manager"
     children: list[Agent] = []
 
+    def _generate_prompt(self):
+        raise NotImplementedError()
+
     def run_turn_recurse(self):
         # this is only an approximation of inverse bfs
         # the primary point is to execute all workers before the managers
