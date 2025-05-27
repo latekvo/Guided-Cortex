@@ -23,6 +23,28 @@ class Agent(ABC):
     llm: BaseChatModel  # ref to predefined class
     token_limit: int
 
+    def _task_part(self):
+        return f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}\n\n"
+
+    def _chats_part(self):
+        # todo: show last N messages (dynamically adjust N probably)
+        chats_str = ""
+        for chat in self.external_chats:
+            if chat.initiator_id == self.id:
+                other_id = chat.target_id
+            else:
+                other_id = chat.initiator_id
+            # temporary placeholder, use actual labels
+            peer_label = other_id
+            chats_str += f"- Conversation with: {peer_label}, opening reason: {chat.opening_reason}\n"
+        return f"# List of open conversations:\n" + chats_str
+
+    def _log_part(self):
+        chats_str = ""
+        for msg in self.interface_chat:
+            chats_str += f'> "{msg.name}": "{msg.content}"\n'
+        return f"# Log of your actions:\n" + chats_str
+
     @abstractmethod
     def _generate_prompt(self):
         raise NotImplementedError()
