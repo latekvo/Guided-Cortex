@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Literal
+from uuid import uuid4
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, AIMessage, ToolCall, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    AIMessage,
+    ToolCall,
+    ToolMessage,
+    SystemMessage,
+)
 from langchain_core.tools import BaseTool
 from langchain_core.tools import tool
 from pydantic import ValidationError
@@ -52,8 +59,10 @@ class Agent(ABC):
     llm: BaseChatModel  # ref to predefined class
     token_limit: int  # todo: implement
 
-    def __init__(self, task: str):
+    def __init__(self, task: str, label: str):
         self.llm = CoreLLM()
+        self.id = uuid4().hex
+        self.label = label
         self.creation_task = task
         self.interface_chat = []
         self.external_chats = []
@@ -115,8 +124,6 @@ class Agent(ABC):
             return t_response
 
     def _execute_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
-        if len(tool_calls) == 0:
-            return [ToolMessage("No tools were called. All non-tool input is ignored.")]
         t_results = []
         for tool_call in tool_calls:
             res = self._execute_tool_call(tool_call)
@@ -129,4 +136,12 @@ class Agent(ABC):
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
             # todo: cram tool result back into self. stores
-            self._execute_tool_calls(result.tool_calls)
+            if len(result.tool_calls) == 0:
+                self.interface_chat.append(
+                    SystemMessage(
+                        "No tools were called. All non-tool input is ignored."
+                    )
+                )
+            else:
+                # todo: include both tool calls and tool results - interweave or stack them
+                self.interface_chat.extend(self._execute_tool_calls(result.tool_calls))

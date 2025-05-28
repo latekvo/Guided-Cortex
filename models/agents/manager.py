@@ -26,8 +26,8 @@ class Manager(Agent):
     type: Literal["manager"] = "manager"
     children: list[Agent]
 
-    def __init__(self, task):
-        super().__init__(task)
+    def __init__(self, task, label):
+        super().__init__(task, label)
         self.children = []
         self.available_tools += [
             self.create_task,

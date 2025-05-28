@@ -1,3 +1,4 @@
+from models.agents.base import Agent
 from models.agents.manager import Manager
 
 # note: We're not doing any persistent thinking functions
@@ -9,12 +10,17 @@ from models.agents.manager import Manager
 # note: there doesn't seem to be a need for an id-based pool of agents, thus sticking to a ref-tree
 
 
-root_manager = Manager('Say "Hello World"')
+def visualize_tree(root: Agent, indent=0):
+    print(" " * indent + f"- [{root.type}] {root.label}")
+    if isinstance(root, Manager):
+        for child in root.children:
+            visualize_tree(child, indent + 1)
 
 
 def main():
+    root_manager = Manager('Say "Hello World"', "Chief Director")
     root_manager.run_turn_recurse()
-    return
+    visualize_tree(root_manager)
 
 
 main()
