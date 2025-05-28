@@ -4,12 +4,42 @@ from typing import Literal
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, AIMessage, ToolCall, ToolMessage
 from langchain_core.tools import BaseTool
+from langchain_core.tools import tool
 from pydantic import ValidationError
 
 from models.chats import ExternalChat
+from shared.CoreLLM import CoreLLM
+
+
+# All functions HAVE to be defined within the agent classes.
+# This is the simplest way for them to interact with the hierarchy and agent-specific props.
 
 
 class Agent(ABC):
+    @tool
+    def broadcast_question(self, question: str):
+        """Broadcasts a question within your team, opens a chat with the peer who can answer you."""
+        # overseer determines if the question can and should be answered, then routes it appropriately
+        pass
+
+    @tool
+    def message_peer(self, message: str, peer_id: str):
+        """Sends a message in one of your open peer chats."""
+        # opens communication with an agent relevant to request
+        # we have to limit possible connections, they may eat up context
+        pass
+
+    @tool
+    def close_peer_chat(self, peer_id: str):
+        """Closes a chat once the original question has been resolved."""
+        pass
+
+    @tool
+    def message_superior(self, message: str):
+        """Sends message to your superior."""
+        # direct communication with parent
+        pass
+
     id: str  # unique but readable, max 8 base36 chars
     label: str  # non-unique
     type: Literal["overseer", "manager", "worker", "verifier"]
@@ -19,9 +49,20 @@ class Agent(ABC):
     interface_chat: list[BaseMessage]  # action history, tool calls, UI & notes
     external_chats: list[ExternalChat]  # chats opened with other agents
 
-    # metadata
     llm: BaseChatModel  # ref to predefined class
-    token_limit: int
+    token_limit: int  # todo: implement
+
+    def __init__(self, task: str):
+        self.llm = CoreLLM()
+        self.creation_task = task
+        self.interface_chat = []
+        self.external_chats = []
+        self.available_tools = [
+            self.broadcast_question,
+            self.message_peer,
+            self.close_peer_chat,
+            self.message_superior,
+        ]
 
     def _task_part(self):
         return f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}\n\n"
@@ -50,7 +91,7 @@ class Agent(ABC):
         raise NotImplementedError()
 
     def _execute_tool_call(self, tool_call: ToolCall) -> ToolMessage:
-        tools = {tool.name: tool for tool in self.available_tools}
+        tools = {t.name: t for t in self.available_tools}
         t_id = tool_call["id"]
         t_name = tool_call["name"]
         t_args = tool_call["args"]

@@ -1,15 +1,39 @@
 from typing import Literal
 
+from langchain_core.tools import tool
+
 from models.agents.base import Agent
 from prompts.manager import manager_system_prompt
-from tools.manager import manager_toolset
 
 
 class Manager(Agent):
+    @tool
+    def create_task(self, label: str, task: str):
+        """Schedules creation and execution of the specified task."""
+        pass
+
+    @tool
+    def accept_task_result(self, optional_comment: str):
+        """Approve the work once it is high quality and working well."""
+        pass
+
+    @tool
+    def terminate_task(self, task_id: str):
+        """Stops task execution, whether it is finished or still executing."""
+        pass
+
     # tree node - dispatches sub-managers and workers
     type: Literal["manager"] = "manager"
-    children: list[Agent] = []
-    available_tools = manager_toolset
+    children: list[Agent]
+
+    def __init__(self, task):
+        super().__init__(task)
+        self.children = []
+        self.available_tools += [
+            self.create_task,
+            self.accept_task_result,
+            self.terminate_task,
+        ]
 
     def run_turn_recurse(self):
         # this is only an approximation of inverse bfs

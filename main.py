@@ -9,7 +9,7 @@ from models.agents.manager import Manager
 # note: there doesn't seem to be a need for an id-based pool of agents, thus sticking to a ref-tree
 
 
-root_manager = Manager()
+root_manager = Manager('Say "Hello World"')
 
 
 def main():
