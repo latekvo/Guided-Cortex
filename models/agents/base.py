@@ -52,6 +52,7 @@ class Agent(ABC):
         pass
 
     id: str  # unique but readable, max 8 base36 chars
+    parent_id: str
     label: str  # non-unique
     type: Literal["overseer", "manager", "worker", "verifier"]
 
@@ -63,9 +64,10 @@ class Agent(ABC):
     llm: BaseChatModel  # ref to predefined class
     token_limit: int  # todo: implement
 
-    def __init__(self, task: str, label: str):
+    def __init__(self, parent_id: str, task: str, label: str):
         self.llm = CoreLLM()
         self.id = uuid4().hex[:6]  # todo: collision avoidance, collisions likely
+        self.parent_id = parent_id
         self.label = label
         self.creation_task = task
         self.interface_chat = []

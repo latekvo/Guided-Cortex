@@ -25,9 +25,9 @@ class Manager(Agent):
     ):
         """Schedules creation and execution of the specified task."""
         if task_type == "abstract":
-            child = Manager(task, label)
+            child = Manager(self.id, task, label)
         else:
-            child = Worker(task, label)
+            child = Worker(self.id, task, label)
 
         self.children.append(child)
 
@@ -84,8 +84,8 @@ class Manager(Agent):
     type: Literal["manager"] = "manager"
     children: list[Agent]
 
-    def __init__(self, task, label):
-        super().__init__(task, label)
+    def __init__(self, parent_id, task, label):
+        super().__init__(parent_id, task, label)
         self.children = []
         self.available_tools += [
             self.create_task,

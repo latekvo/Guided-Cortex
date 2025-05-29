@@ -20,8 +20,8 @@ class Verifier(Agent):
     # tree leaf - ensures validity and quality of worker's output before sending it over to the manager
     type: Literal["verifier"] = "verifier"
 
-    def __init__(self, task, label):
-        super().__init__(task, label)
+    def __init__(self, parent_id, task, label):
+        super().__init__(parent_id, task, label)
         self.available_tools += [
             self.approve_work,
             self.request_changes,

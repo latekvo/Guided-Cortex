@@ -29,8 +29,8 @@ class Worker(Agent):
     type: Literal["worker"] = "worker"
     # devices: list[VirtualDevice] # device system which extends available tooling, overkill for now
 
-    def __init__(self, task, label):
-        super().__init__(task, label)
+    def __init__(self, parent_id, task, label):
+        super().__init__(parent_id, task, label)
         self.available_tools += [
             self.submit_work,
             self.run_linux_shell_command,

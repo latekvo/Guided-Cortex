@@ -17,8 +17,12 @@ def visualize_tree(root: Agent, indent=0):
             visualize_tree(child, indent + 1)
 
 
+# todo: impl async user chat or injection CLI
+#       user should be able to contact ANY member of the hierarchy
+
+
 def main():
-    root_manager = Manager('Say "Hello World"', "Chief Director")
+    root_manager = Manager("ROOT_USER", 'Say "Hello World"', "Chief Director")
     root_manager.run_turn_recurse()
     visualize_tree(root_manager)
 

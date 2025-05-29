@@ -29,8 +29,8 @@ class Overseer(Agent):
     # tree manager, trimmer and grower - independent of tree structure
     type: Literal["overseer"] = "overseer"
 
-    def __init__(self, task, label):
-        super().__init__(task, label)
+    def __init__(self, parent_id, task, label):
+        super().__init__(parent_id, task, label)
         self.available_tools += [
             self.approve_task,
             self.modify_and_approve_task,
