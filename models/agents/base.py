@@ -21,6 +21,10 @@ from shared.CoreLLM import CoreLLM
 # All functions HAVE to be defined within the agent classes.
 # This is the simplest way for them to interact with the hierarchy and agent-specific props.
 
+# We want to add 'reasoning' to each tool call.
+# Do we have to convert the tools to structural outputs?
+# As a hack, could just add `_reasoning: str` tool arg.
+
 
 class Agent(ABC):
     @tool
@@ -61,7 +65,7 @@ class Agent(ABC):
 
     def __init__(self, task: str, label: str):
         self.llm = CoreLLM()
-        self.id = uuid4().hex
+        self.id = uuid4().hex[:6]  # todo: collision avoidance, collisions likely
         self.label = label
         self.creation_task = task
         self.interface_chat = []
@@ -72,6 +76,11 @@ class Agent(ABC):
             self.close_peer_chat,
             self.message_superior,
         ]
+
+    def _get_chat_by_member_id(self, member_id) -> ExternalChat | None:
+        for chat in self.external_chats:
+            if chat.target_id == member_id or chat.initiator_id == member_id:
+                return chat
 
     def _task_part(self):
         return f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}\n\n"
