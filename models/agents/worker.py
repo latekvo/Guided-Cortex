@@ -1,7 +1,7 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
-from langchain_core.tools import tool
+from langchain_core.tools import StructuredTool
 
 from models.agents.base import Agent
 from prompts.worker import worker_system_prompt
@@ -13,9 +13,7 @@ from runtimes.runtime import (
 
 
 class Worker(Agent):
-    @tool
-    def submit_work(self, work_result: str):
-        """Submit your work once the work is high quality and working well."""
+    def _tool_submit_work(self, work_result: str):
         # todo: submit_work should be dispatching a verifier.
         #       Right now, it just sends a message to the Manager.
         message = AIMessage(
@@ -26,14 +24,10 @@ class Worker(Agent):
             "Your work has been successfully submitted. It's currently being verified."
         )
 
-    @tool
-    def run_linux_shell_command(self, command: str):
-        """Runs a linux shell command."""
+    def _tool_run_linux_shell_command(self, command: str):
         return use_linux_shell(command, self.id)
 
-    @tool
-    def write_to_scratchpad(self, text: str):
-        """Writes a tiny note to your low-capacity scratchpad."""
+    def _tool_write_to_scratchpad(self, text: str):
         # Scratchpad is provided to workers, as their time is abundant and their context is disposable.
         # Worker tasks may also turn out more complex than expected, we don't want this to cause excessive
         # communications with the worker's parent, as it's unlikely they'd find a good solution together.
@@ -42,7 +36,6 @@ class Worker(Agent):
 
     # tree leaf - access to practical tools
     type: Literal["worker"] = "worker"
-    # devices: list[VirtualDevice] # device system which extends available tooling, overkill for now
     pause_initiative = False
     scratchpad_chat: list[AIMessage]  # action history, tool calls, UI & notes
 
@@ -51,9 +44,21 @@ class Worker(Agent):
         create_linux_instance(self.id)
         self.scratchpad_chat = []
         self.available_tools += [
-            self.submit_work,
-            self.run_linux_shell_command,
-            self.write_to_scratchpad,
+            StructuredTool.from_function(
+                name="submit_work",
+                func=self._tool_submit_work,
+                description="Submit your work once the work is high quality and working well.",
+            ),
+            StructuredTool.from_function(
+                name="run_linux_shell_command",
+                func=self._tool_run_linux_shell_command,
+                description="Runs a linux shell command.",
+            ),
+            StructuredTool.from_function(
+                name="write_to_scratchpad",
+                func=self._tool_write_to_scratchpad,
+                description="Writes a tiny note to your low-capacity scratchpad.",
+            ),
         ]
 
     def __del__(self):

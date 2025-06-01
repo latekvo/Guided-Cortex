@@ -10,8 +10,7 @@ from langchain_core.messages import (
     ToolMessage,
     SystemMessage,
 )
-from langchain_core.tools import BaseTool
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import ValidationError
 
 from models.chats import ExternalChat
@@ -25,27 +24,27 @@ from shared.CoreLLM import CoreLLM
 # Do we have to convert the tools to structural outputs?
 # As a hack, could just add `_reasoning: str` tool arg.
 
+# todo: tools cannot be directly defined within class due to internal langchain issues
+#  as a workaround, they can be used as a wrapper to internal function closures
+#  as a proper fix, all tools have to be converted to structured output models
+
 
 class Agent(ABC):
-    @tool
-    def broadcast_question(self, question: str):
-        """Broadcasts a question within your team, opens a chat with the peer who can answer you."""
-        # overseer determines if the question can and should be answered, then routes it appropriately
-        return "Broadcasting questions is not possible yet."
+    # def _tool_broadcast_question(self, _question: str):
+    #     """Broadcasts a question within your team, opens a chat with the peer who can answer you."""
+    #     # overseer determines if the question can and should be answered, then routes it appropriately
+    #     return "Broadcasting questions is not possible yet."
 
-    @tool
-    def message_peer(self, message: str, peer_id: str):
-        """Sends a message to one of your open peer chats."""
+    def _tool_message_peer(self, message: str, peer_id: str):
         if peer_id not in self.external_chats:
             # New chats are opened only for special occasions, e.g. resolving conflicts.
             return f"Chat to {peer_id} does not exist."
+        print(f"[{self.label} -> {peer_id}]: {message}")
         message = AIMessage(self._sign_message(message))
         self.external_chats[peer_id].chat_history.append(message)
         return "Message sent."
 
-    @tool
-    def close_peer_chat(self, peer_id: str):
-        """Closes a chat once the original question has been resolved."""
+    def _tool_close_peer_chat(self, peer_id: str):
         if peer_id not in self.external_chats:
             return f"No chat with {peer_id} exists."
         if peer_id == self.parent_id:
@@ -53,10 +52,9 @@ class Agent(ABC):
         del self.external_chats[peer_id]
         return "Closed chat."
 
-    @tool
-    def message_superior(self, message: str):
-        """Sends message to your superior."""
+    def _tool_message_superior(self, message: str):
         # direct communication with parent
+        print(f"[{self.label} -> {self.parent_id} (superior)]: {message}")
         message = AIMessage(self._sign_message(message))
         self.external_chats[self.parent_id].chat_history.append(message)
         return "Message sent."
@@ -78,17 +76,33 @@ class Agent(ABC):
 
     def __init__(self, parent_id: str, task: str, label: str):
         self.llm = CoreLLM()
-        self.id = uuid4().hex[:6]  # todo: collision avoidance, collisions likely
+        self.id = uuid4().hex[:6]  # todo: add collision avoidance, collisions likely
         self.parent_id = parent_id
         self.label = label
         self.creation_task = task
         self.interface_chat = []
         self.external_chats = {}
         self.available_tools = [
-            self.broadcast_question,
-            self.message_peer,
-            self.close_peer_chat,
-            self.message_superior,
+            # StructuredTool.from_function(
+            #     name="broadcast_question",
+            #     func=self._tool_broadcast_question,
+            #     description="Broadcasts a question within your team, opens a chat with the peer who can answer you.",
+            # ),
+            StructuredTool.from_function(
+                name="message_peer",
+                func=self._tool_message_peer,
+                description="Sends a message to one of your open peer chats.",
+            ),
+            StructuredTool.from_function(
+                name="close_peer_chat",
+                func=self._tool_close_peer_chat,
+                description="Closes a chat once the original question has been resolved.",
+            ),
+            StructuredTool.from_function(
+                name="message_your_superior",
+                func=self._tool_message_superior,
+                description="Sends message to your superior.",
+            ),
         ]
 
     def _get_chat_by_target_id(self, target_id) -> ExternalChat | None:

@@ -1,7 +1,7 @@
 from typing import Literal
 
 from langchain_core.messages import AIMessage
-from langchain_core.tools import tool
+from langchain_core.tools import StructuredTool
 
 from models.agents.base import Agent
 from models.agents.worker import Worker
@@ -15,15 +15,13 @@ from prompts.manager import manager_system_prompt
 
 
 class Manager(Agent):
-    @tool
-    def create_task(
+    def _tool_create_task(
         self,
         label: str,
         task: str,
         # `task_type` is a temporary replacement for Overseer
         task_type: Literal["abstract", "technical"],
     ):
-        """Schedules creation and execution of the specified task."""
         if task_type == "abstract":
             child = Manager(self.id, task, label)
         else:
@@ -38,9 +36,7 @@ class Manager(Agent):
         child.external_chats |= {self.id: shared_chat}
         return f"Task '{child.id}' created successfully."
 
-    @tool
-    def accept_task_result(self, task_id: str):
-        """Approve the work once it is high quality and working well."""
+    def _tool_accept_task_result(self, task_id: str):
         # Task completion notification is delivered via UI.
         # This function simply closes the task if it's in a satisfactory state.
         # todo: add a confirmation or lock this function to low-nesting chats only
@@ -55,9 +51,7 @@ class Manager(Agent):
         del self.external_chats[child.id]
         return f"Task {task_id} closed as completed."
 
-    @tool
-    def deny_task_result(self, task_id: str, denial_reason: str):
-        """Deny the work submitted by one of your workers."""
+    def _tool_deny_task_result(self, task_id: str, denial_reason: str):
         # While generally active communication is preferred,
         # there could be a situation where invalid work is submitted and successfully verified.
         chat = self._get_chat_by_target_id(task_id)
@@ -71,9 +65,7 @@ class Manager(Agent):
         )
         return "Task result denied. Notified worker about the denial reason."
 
-    @tool
-    def terminate_task(self, task_id: str):
-        """Stops task execution, whether it is finished or still executing."""
+    def _tool_terminate_task(self, task_id: str):
         child = self._get_child_by_id(task_id)
         chat = self._get_chat_by_target_id(task_id)
         if child is None or chat is None:
@@ -83,9 +75,8 @@ class Manager(Agent):
         del self.external_chats[child.id]
         return f"Task {task_id} successfully terminated."
 
-    @tool
-    def skip_turn(self):
-        """Skips your turn if you're waiting for some tasks to complete."""
+    @staticmethod
+    def _tool_skip_turn():
         return f"Turn skipped, passing time."
 
     # tree node - dispatches sub-managers and workers
@@ -96,9 +87,21 @@ class Manager(Agent):
         super().__init__(parent_id, task, label)
         self.children = []
         self.available_tools += [
-            self.create_task,
-            self.accept_task_result,
-            self.terminate_task,
+            StructuredTool.from_function(
+                name="create_task",
+                func=self._tool_create_task,
+                description="Schedules creation and execution of the specified task.",
+            ),
+            StructuredTool.from_function(
+                name="accept_task_result",
+                func=self._tool_accept_task_result,
+                description="Approve the work once it is high quality and working well.",
+            ),
+            StructuredTool.from_function(
+                name="terminate_task",
+                func=self._tool_terminate_task,
+                description="Stops task execution, whether it is finished or still executing.",
+            ),
         ]
 
     def _get_child_by_id(self, task_id) -> Agent | None:
