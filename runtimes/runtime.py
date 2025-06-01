@@ -59,15 +59,10 @@ def use_linux_shell(command_text: str, instance_id: str) -> str | None:
 
 
 def is_linux_ok() -> bool:
-    main_linux_instance.stdin.write("echo foo bar baz\n")
-    main_linux_instance.stdin.flush()
-    out = main_linux_instance.stdout.readline()
-    err = main_linux_instance.stderr.readline()
-    print("LINUX CHECK: out:", out)
-    print("LINUX CHECK: err:", err)
+    create_linux_instance("__test")
+    out = use_linux_shell('echo "OK"', "__test")
     if out is None or out == "":
+        print("LINUX CHECK:", "FAILED")
         return False
+    print("LINUX CHECK:", out)
     return True
-
-
-is_linux_ok()

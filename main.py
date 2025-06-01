@@ -1,5 +1,7 @@
 from models.agents.base import Agent
 from models.agents.manager import Manager
+from runtimes.runtime import is_linux_ok
+
 
 # note: We're not doing any persistent thinking functions
 #       Managers should be able to divide the tasks and respond to events,
@@ -22,7 +24,13 @@ def visualize_tree(root: Agent, indent=0):
 
 
 def main():
-    root_manager = Manager("ROOT_USER", 'Say "Hello World"', "Chief Director")
+    is_linux_ok()
+
+    root_manager = Manager(
+        "ROOT_USER",
+        'Say "Hello World", then create 2 workers each also saying "Hello world"',
+        "Chief Director",
+    )
     root_manager.run_turn_recurse()
     visualize_tree(root_manager)
 
