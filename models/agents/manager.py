@@ -31,9 +31,12 @@ class Manager(Agent):
 
         self.children.append(child)
 
+        # todo: opening_reason should be generated, not hardcoded
         shared_chat = ExternalChat(self.id, child.id, "Creation of new task")
-        self.external_chats.append(shared_chat)
-        child.external_chats.append(shared_chat)
+
+        self.external_chats |= {child.id: shared_chat}
+        child.external_chats |= {self.id: shared_chat}
+        return f"Task '{child.id}' created successfully."
 
     @tool
     def accept_task_result(self, task_id: str):
@@ -44,12 +47,12 @@ class Manager(Agent):
         #       a high-level manager accidentally "accepting" the work of another high-leveler
         #       could be devastating. Perhaps put spent agents to sleep until memory limit is hit?
         child = self._get_child_by_id(task_id)
-        chat = self._get_chat_by_member_id(task_id)
+        chat = self._get_chat_by_target_id(task_id)
         if child is None or chat is None:
             return f"Error: Task {task_id} not found."
 
         self.children.remove(child)
-        self.external_chats.remove(chat)
+        del self.external_chats[child.id]
         return f"Task {task_id} closed as completed."
 
     @tool
@@ -57,7 +60,7 @@ class Manager(Agent):
         """Deny the work submitted by one of your workers."""
         # While generally active communication is preferred,
         # there could be a situation where invalid work is submitted and successfully verified.
-        chat = self._get_chat_by_member_id(task_id)
+        chat = self._get_chat_by_target_id(task_id)
 
         if chat is None:
             return f"Error: Task {task_id} not found."
@@ -72,13 +75,18 @@ class Manager(Agent):
     def terminate_task(self, task_id: str):
         """Stops task execution, whether it is finished or still executing."""
         child = self._get_child_by_id(task_id)
-        chat = self._get_chat_by_member_id(task_id)
+        chat = self._get_chat_by_target_id(task_id)
         if child is None or chat is None:
             return f"Error: Task {task_id} not found."
 
         self.children.remove(child)
-        self.external_chats.remove(chat)
+        del self.external_chats[child.id]
         return f"Task {task_id} successfully terminated."
+
+    @tool
+    def skip_turn(self):
+        """Skips your turn if you're waiting for some tasks to complete."""
+        return f"Turn skipped, passing time."
 
     # tree node - dispatches sub-managers and workers
     type: Literal["manager"] = "manager"

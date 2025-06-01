@@ -31,25 +31,35 @@ class Agent(ABC):
     def broadcast_question(self, question: str):
         """Broadcasts a question within your team, opens a chat with the peer who can answer you."""
         # overseer determines if the question can and should be answered, then routes it appropriately
-        pass
+        return "Broadcasting questions is not possible yet."
 
     @tool
     def message_peer(self, message: str, peer_id: str):
-        """Sends a message in one of your open peer chats."""
-        # opens communication with an agent relevant to request
-        # we have to limit possible connections, they may eat up context
-        pass
+        """Sends a message to one of your open peer chats."""
+        if peer_id not in self.external_chats:
+            # New chats are opened only for special occasions, e.g. resolving conflicts.
+            return f"Chat to {peer_id} does not exist."
+        message = AIMessage(self._sign_message(message))
+        self.external_chats[peer_id].chat_history.append(message)
+        return "Message sent."
 
     @tool
     def close_peer_chat(self, peer_id: str):
         """Closes a chat once the original question has been resolved."""
-        pass
+        if peer_id not in self.external_chats:
+            return f"No chat with {peer_id} exists."
+        if peer_id == self.parent_id:
+            return "You cannot close the chat with your superior."
+        del self.external_chats[peer_id]
+        return "Closed chat."
 
     @tool
     def message_superior(self, message: str):
         """Sends message to your superior."""
         # direct communication with parent
-        pass
+        message = AIMessage(self._sign_message(message))
+        self.external_chats[self.parent_id].chat_history.append(message)
+        return "Message sent."
 
     id: str  # unique but readable, max 8 base36 chars
     parent_id: str
@@ -59,7 +69,9 @@ class Agent(ABC):
     creation_task: str
     available_tools: list[BaseTool]
     interface_chat: list[BaseMessage]  # action history, tool calls, UI & notes
-    external_chats: list[ExternalChat]  # chats opened with other agents
+
+    # todo: ExternalChat should have direct member ref, but circ refs can be an issue for GC in some known situations.
+    external_chats: dict[str, ExternalChat]  # chats opened with other agents
 
     llm: BaseChatModel  # ref to predefined class
     token_limit: int  # todo: implement
@@ -71,7 +83,7 @@ class Agent(ABC):
         self.label = label
         self.creation_task = task
         self.interface_chat = []
-        self.external_chats = []
+        self.external_chats = {}
         self.available_tools = [
             self.broadcast_question,
             self.message_peer,
@@ -79,10 +91,8 @@ class Agent(ABC):
             self.message_superior,
         ]
 
-    def _get_chat_by_member_id(self, member_id) -> ExternalChat | None:
-        for chat in self.external_chats:
-            if chat.target_id == member_id or chat.initiator_id == member_id:
-                return chat
+    def _get_chat_by_target_id(self, target_id) -> ExternalChat | None:
+        return self.external_chats.get(target_id)
 
     def _task_part(self):
         return f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}\n\n"
@@ -90,7 +100,7 @@ class Agent(ABC):
     def _chats_part(self):
         # todo: show last N messages (dynamically adjust N probably)
         chats_str = ""
-        for chat in self.external_chats:
+        for chat in self.external_chats.values():
             if chat.initiator_id == self.id:
                 other_id = chat.target_id
             else:
@@ -105,6 +115,12 @@ class Agent(ABC):
         for msg in self.interface_chat:
             chats_str += f'> "{msg.name}": "{msg.content}"\n'
         return f"# Log of your actions:\n" + chats_str
+
+    def _sign_message(self, text: str):
+        clean_text = text.replace("\n", "<br>")
+        # Using JSONL, it's most likely the least confusing format for dense entries
+        # Signed msgs should remain slim, recipient's details will be displayed separately
+        return f'{{"author": "{self.id}", "message": "{clean_text}"}}\n'
 
     @abstractmethod
     def _generate_prompt(self):
