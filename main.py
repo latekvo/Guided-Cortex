@@ -29,7 +29,7 @@ def main():
     root_manager.external_chats[USER_ID] = root_chat
 
     root_chat.chat_history.append(
-        HumanMessage('Create 2 workers each saying "Hello world"')
+        HumanMessage('Create 2 tasks with the following command "output Hello world"')
     )
 
     root_manager.run_turn_recurse()

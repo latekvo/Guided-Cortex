@@ -3,6 +3,7 @@ from typing import Literal
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 
+from debug.tracer import Trace, trace
 from models.agents.base import Agent
 from models.agents.worker import Worker
 from models.chats import ExternalChat
@@ -27,6 +28,10 @@ class Manager(Agent):
         else:
             child = Worker(self.id, task, label)
 
+        trace(
+            Trace.NEW_TASK, f'{self.label} creates {task_type} child "{child.label}".'
+        )
+
         self.children.append(child)
 
         # todo: opening_reason should be generated, not hardcoded
@@ -47,6 +52,12 @@ class Manager(Agent):
         if child is None or chat is None:
             return f"Error: Task {task_id} not found."
 
+        trace(
+            Trace.DEL_TASK,
+            f"{self.label} removes {child.label}: ",
+            "Task has been completed.",
+        )
+
         self.children.remove(child)
         del self.external_chats[child.id]
         return f"Task {task_id} closed as completed."
@@ -59,6 +70,8 @@ class Manager(Agent):
         if chat is None:
             return f"Error: Task {task_id} not found."
 
+        trace(Trace.CHAT, f"{self.label} denies work result.")
+
         # todo: add proper message author system
         chat.chat_history.append(
             AIMessage(f"NOTIFICATION: Task result has been denied: {denial_reason}")
@@ -70,13 +83,14 @@ class Manager(Agent):
         chat = self._get_chat_by_target_id(task_id)
         if child is None or chat is None:
             return f"Error: Task {task_id} not found."
+        trace(Trace.DEL_TASK, f"{self.label} removes {child.label}")
 
         self.children.remove(child)
         del self.external_chats[child.id]
         return f"Task {task_id} successfully terminated."
 
-    @staticmethod
-    def _tool_skip_turn():
+    def _tool_skip_turn(self):
+        trace(Trace.THINK, f"{self.label} skips turn.")
         return f"Turn skipped, passing time."
 
     # tree node - dispatches sub-managers and workers

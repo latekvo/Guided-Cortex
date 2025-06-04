@@ -13,6 +13,7 @@ from langchain_core.messages import (
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import ValidationError
 
+from debug.tracer import trace, Trace
 from models.chats import ExternalChat
 from shared.CoreLLM import CoreLLM
 
@@ -28,6 +29,9 @@ from shared.CoreLLM import CoreLLM
 #  as a workaround, they can be used as a wrapper to internal function closures
 #  as a proper fix, all tools have to be converted to structured output models
 
+# Note: ALL incoming messages are "Human", all generated messages are "AI"
+#       This is necessary for the models to function correctly, to recognize themselves and others.
+
 
 class Agent(ABC):
     # def _tool_broadcast_question(self, _question: str):
@@ -39,7 +43,7 @@ class Agent(ABC):
         if peer_id not in self.external_chats:
             # New chats are opened only for special occasions, e.g. resolving conflicts.
             return f"Chat to {peer_id} does not exist."
-        print(f"[{self.label} -> {peer_id}]: {message}")
+        trace(Trace.CHAT, f"[{self.label} -> {peer_id}]: ", message)
         message = AIMessage(self._sign_message(message))
         self.external_chats[peer_id].chat_history.append(message)
         return "Message sent."
@@ -49,12 +53,17 @@ class Agent(ABC):
             return f"No chat with {peer_id} exists."
         if peer_id == self.parent_id:
             return "You cannot close the chat with your superior."
+        trace(
+            Trace.DEL_CHAT,
+            f"[{self.label} -> {peer_id}]: ",
+            "=== CLOSING PEER CHAT ===",
+        )
         del self.external_chats[peer_id]
         return "Closed chat."
 
     def _tool_message_superior(self, message: str):
         # direct communication with parent
-        print(f"[{self.label} -> {self.parent_id} (superior)]: {message}")
+        trace(Trace.CHAT, f"[{self.label} -> {self.parent_id} (superior)]: ", message)
         message = AIMessage(self._sign_message(message))
         self.external_chats[self.parent_id].chat_history.append(message)
         return "Message sent."
@@ -146,6 +155,9 @@ class Agent(ABC):
         t_name = tool_call["name"]
         t_args = tool_call["args"]
 
+        # placeholder, will be copied to every tool definition
+        trace(Trace.CHAT, f"{self.label} called {t_name}.", f" Args: {str(t_args)}")
+
         t_response = ToolMessage(
             tool_call_id=t_id,
             name=t_name,
@@ -174,6 +186,7 @@ class Agent(ABC):
     def run_turn(self):
         tool_llm = self.llm.bind_tools(self.available_tools)
         result = tool_llm.invoke(self._generate_prompt())
+        trace(Trace.THINK, f"{self.label} thought: ", str(result.content))
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
             # todo: cram tool result back into self. stores
