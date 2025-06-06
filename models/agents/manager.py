@@ -108,6 +108,11 @@ class Manager(Agent):
                 description="Approve the work once it is high quality and working well.",
             ),
             StructuredTool.from_function(
+                name="deny_task_result",
+                func=self._tool_deny_task_result,
+                description="Deny the work if it does not meet your use-case, requirements, or quality standards.",
+            ),
+            StructuredTool.from_function(
                 name="terminate_task",
                 func=self._tool_terminate_task,
                 description="Stops task execution, whether it is finished or still executing.",
