@@ -44,8 +44,7 @@ class Agent(ABC):
             # New chats are opened only for special occasions, e.g. resolving conflicts.
             return f"Chat to {peer_id} does not exist."
         trace(Trace.CHAT, f"[{self.label} -> {peer_id}]: ", message)
-        message = AIMessage(self._sign_message(message))
-        self.external_chats[peer_id].chat_history.append(message)
+        self.external_chats[peer_id].send_message(message)
         return "Message sent."
 
     def _tool_close_peer_chat(self, peer_id: str):
@@ -58,14 +57,14 @@ class Agent(ABC):
             f"[{self.label} -> {peer_id}]: ",
             "=== CLOSING PEER CHAT ===",
         )
+        # todo: remove message from child, add __del__ to auto-resolve circ dep
         del self.external_chats[peer_id]
         return "Closed chat."
 
     def _tool_message_superior(self, message: str):
         # direct communication with parent
         trace(Trace.CHAT, f"[{self.label} -> {self.parent_id} (superior)]: ", message)
-        message = AIMessage(self._sign_message(message))
-        self.external_chats[self.parent_id].chat_history.append(message)
+        self.external_chats[self.parent_id].send_message(message)
         return "Message sent."
 
     id: str  # unique but readable, max 8 base36 chars
@@ -117,27 +116,26 @@ class Agent(ABC):
     def _get_chat_by_target_id(self, target_id) -> ExternalChat | None:
         return self.external_chats.get(target_id)
 
-    def _task_part(self):
-        return f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}\n\n"
+    def _task_part(self) -> SystemMessage:
+        return SystemMessage(f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}")
 
-    def _chats_part(self):
-        # todo: show last N messages (dynamically adjust N probably)
-        chats_str = ""
+    def _chats_part(self) -> list[BaseMessage]:
+        # todo: show last N messages only (dynamically adjust N to fit max usable tok limit)
+        combined: list[BaseMessage] = [
+            SystemMessage(
+                f"# Below is the list of different the conversations you're currently taking part in:\n"
+            )
+        ]
         for chat in self.external_chats.values():
-            if chat.initiator_id == self.id:
-                other_id = chat.target_id
-            else:
-                other_id = chat.initiator_id
-            # temporary placeholder, use actual labels
-            peer_label = other_id
-            chats_str += f"- Conversation with: {peer_label}, opening reason: {chat.opening_reason}\n"
-        return f"# List of open conversations:\n" + chats_str
+            combined.append(SystemMessage(f"Your conversation with {chat.target_id}:"))
+            combined.extend(chat.chat_history)
+        return combined
 
-    def _log_part(self):
-        chats_str = ""
-        for msg in self.interface_chat:
-            chats_str += f'> "{msg.name}": "{msg.content}"\n'
-        return f"# Log of your actions:\n" + chats_str
+    def _log_part(self) -> list[BaseMessage]:
+        return [
+            SystemMessage(f"# Below is the history of your previous actions:\n"),
+            *self.interface_chat,
+        ]
 
     def _sign_message(self, text: str):
         clean_text = text.replace("\n", "<br>")
@@ -146,7 +144,7 @@ class Agent(ABC):
         return f'{{"author": "{self.id}", "message": "{clean_text}"}}\n'
 
     @abstractmethod
-    def _generate_prompt(self):
+    def _generate_prompt(self) -> list[BaseMessage]:
         raise NotImplementedError()
 
     def _execute_tool_call(self, tool_call: ToolCall) -> ToolMessage:

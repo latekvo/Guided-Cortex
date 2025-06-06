@@ -1,6 +1,6 @@
 from typing import Literal
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 from langchain_core.tools import StructuredTool
 
 from debug.tracer import trace, Trace
@@ -73,10 +73,10 @@ class Worker(Agent):
         # todo: if no new messages, and currently being evaluated (paused), skip turn
         super().run_turn()
 
-    def _generate_prompt(self):
-        return (
-            f"{worker_system_prompt}\n\n"
-            f"{self._chats_part()}\n\n"
-            f"{self._log_part()}\n\n"
-            f"{self._task_part()}"
-        )
+    def _generate_prompt(self) -> list[BaseMessage]:
+        return [
+            SystemMessage(worker_system_prompt),
+            self._task_part(),
+            self._chats_part(),
+            self._log_part(),
+        ]

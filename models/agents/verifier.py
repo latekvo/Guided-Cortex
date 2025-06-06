@@ -1,5 +1,6 @@
 from typing import Literal
 
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.tools import tool
 
 from models.agents.base import Agent
@@ -27,10 +28,13 @@ class Verifier(Agent):
             self.request_changes,
         ]
 
-    def _generate_prompt(self):
-        return (
-            f"{verifier_system_prompt}\n\n"
-            f"{self._chats_part()}\n\n"
-            f"{self._log_part()}\n\n"
-            f"{self._task_part()}"
-        )
+    def _generate_prompt(self) -> list[BaseMessage]:
+        return [
+            # todo: split up properly
+            SystemMessage(
+                f"{verifier_system_prompt}\n\n"
+                f"{self._chats_part()}\n\n"
+                f"{self._log_part()}\n\n"
+                f"{self._task_part()}"
+            )
+        ]
