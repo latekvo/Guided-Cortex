@@ -77,6 +77,6 @@ class Worker(Agent):
         return [
             SystemMessage(worker_system_prompt),
             self._task_part(),
-            self._chats_part(),
-            self._log_part(),
+            *self._chats_part(),
+            *self._log_part(),
         ]

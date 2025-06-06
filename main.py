@@ -32,8 +32,13 @@ def main():
 
     root_manager.external_chats[USER_ID] = chat_for_root
 
-    root_manager.run_turn_recurse()
-    visualize_tree(root_manager)
+    while True:
+        root_manager.run_turn_recurse()
+        visualize_tree(root_manager)
+        user_message = input("Write SKIP to skip. Write message to root AI: ")
+        if user_message.lower() == "skip":
+            continue
+        chat_for_self.send_message(user_message)
 
 
 main()

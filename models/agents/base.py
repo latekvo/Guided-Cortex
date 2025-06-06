@@ -184,7 +184,8 @@ class Agent(ABC):
     def run_turn(self):
         tool_llm = self.llm.bind_tools(self.available_tools)
         result = tool_llm.invoke(self._generate_prompt())
-        trace(Trace.THINK, f"{self.label} thought: ", str(result.content))
+        if len(result.content) > 0:
+            trace(Trace.THINK, f"{self.label} thought: ", str(result.content))
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
             # todo: cram tool result back into self. stores
