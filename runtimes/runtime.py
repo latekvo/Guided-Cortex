@@ -1,5 +1,5 @@
 import subprocess
-from subprocess import Popen
+from subprocess import Popen, TimeoutExpired
 
 # 1. `docker run` starts a runtime-persistent instance.
 # 2. `docker exec` hooks an agent into the instance.
@@ -7,7 +7,7 @@ from subprocess import Popen
 
 linux_instances: dict[str, Popen[str]] = {}
 
-main_linux_instance = subprocess.Popen(
+subprocess.run(
     [
         "docker",
         "run",
@@ -47,15 +47,26 @@ def delete_linux_instance(instance_id: str):
     linux_instances.pop(instance_id, None)
 
 
-def use_linux_shell(command_text: str, instance_id: str) -> str | None:
+SHELL_DEFAULT_TIMEOUT = 10
+
+
+def use_linux_shell(
+    command_text: str,
+    instance_id: str,
+    timeout_seconds: int = None,
+) -> str | None:
     global linux_instances
     shell = linux_instances.get(instance_id)
     if shell is None:
         return None
-    shell.stdin.write(command_text + "\n")
-    shell.stdin.flush()
-    # todo: handle multi-line output
-    return shell.stdout.readline()
+    timeout = timeout_seconds or SHELL_DEFAULT_TIMEOUT
+
+    try:
+        outs, errs = shell.communicate(command_text, timeout=timeout)
+        return outs + errs
+    except TimeoutExpired:
+        shell.kill()
+        return f"Timeout error: Command terminated after {timeout} seconds."
 
 
 def is_linux_ok() -> bool:
