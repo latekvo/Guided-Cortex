@@ -9,6 +9,7 @@ from langchain_core.messages import (
     ToolCall,
     ToolMessage,
     SystemMessage,
+    HumanMessage,
 )
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import ValidationError
@@ -116,8 +117,8 @@ class Agent(ABC):
     def _get_chat_by_target_id(self, target_id) -> ExternalChat | None:
         return self.external_chats.get(target_id)
 
-    def _task_part(self) -> SystemMessage:
-        return SystemMessage(f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}")
+    def _task_part(self) -> HumanMessage:
+        return HumanMessage(f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}")
 
     def _chats_part(self) -> list[BaseMessage]:
         # todo: show last N messages only (dynamically adjust N to fit max usable tok limit)

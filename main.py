@@ -24,10 +24,12 @@ def main():
     is_linux_ok()
     root_manager = Manager(USER_ID, "Execute the user's orders", "Chief Director")
 
+    user_message = input("Write message to root AI: ")
+
     chat_for_self, chat_for_root = create_chat_pair(
         USER_ID,
         root_manager.id,
-        'Create 2 tasks with the following command "output Hello world"',
+        user_message,
     )
 
     root_manager.external_chats[USER_ID] = chat_for_root
@@ -35,8 +37,8 @@ def main():
     while True:
         root_manager.run_turn_recurse()
         visualize_tree(root_manager)
-        user_message = input("Write SKIP to skip. Write message to root AI: ")
-        if user_message.lower() == "skip":
+        user_message = input("Press enter to skip. Write message to root AI: ")
+        if user_message == "":
             continue
         chat_for_self.send_message(user_message)
 

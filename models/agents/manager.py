@@ -20,15 +20,15 @@ from prompts.manager import manager_system_prompt
 class Manager(Agent):
     def _tool_create_task(
         self,
-        label: str,
-        task: str,
+        worker_label: str,
+        task_description: str,
         # `task_type` is a temporary replacement for Overseer
-        task_type: Literal["abstract", "technical"],
+        task_type: Literal["manager", "technical"],
     ):
-        if task_type == "abstract":
-            child = Manager(self.id, task, label)
+        if task_type == "manager":
+            child = Manager(self.id, task_description, worker_label)
         else:
-            child = Worker(self.id, task, label)
+            child = Worker(self.id, task_description, worker_label)
 
         trace(
             Trace.NEW_TASK, f'{self.label} creates {task_type} child "{child.label}".'
@@ -36,7 +36,9 @@ class Manager(Agent):
 
         self.children.append(child)
 
-        chat_for_self, chat_for_child = create_chat_pair(self.id, child.id, task)
+        chat_for_self, chat_for_child = create_chat_pair(
+            self.id, child.id, task_description
+        )
 
         self.external_chats |= {child.id: chat_for_self}
         child.external_chats |= {self.id: chat_for_child}
@@ -100,7 +102,7 @@ class Manager(Agent):
             StructuredTool.from_function(
                 name="create_task",
                 func=self._tool_create_task,
-                description="Schedules creation and execution of the specified task.",
+                description="Schedules creation and execution of the specified task. The label should be tiny, and the task description should be exhaustive.",
             ),
             StructuredTool.from_function(
                 name="accept_task_result",
