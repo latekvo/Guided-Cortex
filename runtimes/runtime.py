@@ -13,10 +13,11 @@ subprocess.run(
         "run",
         "--rm",
         "-dit",
-        "--network=none",
+        # "--network=none",  # disabled network
+        "--network=bridge",  # enabled network
         "--cpus=0.5",
         "--memory=128m",
-        "--cap-drop=ALL",
+        # "--cap-drop=ALL", # safety, blocks multiple kernel capabilities (e.g. network)
         "--name",
         "linux-shell",
         "linux",
@@ -61,6 +62,10 @@ def use_linux_shell(
         return None
     timeout = timeout_seconds or SHELL_DEFAULT_TIMEOUT
 
+    # fixme: there is no shell persistence (e.g. cd doesn't work)
+    # fixme: this is a quick patch to fix .communicate crashes
+    create_linux_instance(instance_id)
+
     try:
         outs, errs = shell.communicate(command_text, timeout=timeout)
         return outs + errs
@@ -69,11 +74,29 @@ def use_linux_shell(
         return f"Timeout error: Command terminated after {timeout} seconds."
 
 
+TEST_CMD_ECHO = 'echo "OK"'
+TEST_CMD_NET = "ping -c 1 -W 1 8.8.8.8 &> /dev/null && echo OK || echo NOT OK"
+
+
 def is_linux_ok() -> bool:
     create_linux_instance("__test")
-    out = use_linux_shell('echo "OK"', "__test")
-    if out is None or out == "":
-        print("LINUX CHECK:", "FAILED")
+
+    echo_out = use_linux_shell(TEST_CMD_ECHO, "__test").strip()
+    net_out = use_linux_shell(TEST_CMD_NET, "__test").strip()
+
+    echo_ok = echo_out is not None and echo_out != ""
+    net_ok = net_out is not None and net_out != ""
+
+    if echo_ok:
+        print(f"LINUX [HEALTH] CHECK: {echo_out}")
+    else:
+        print("LINUX [HEALTH] CHECK: FAILED")
         return False
-    print("LINUX CHECK:", out)
+
+    if net_ok:
+        print(f"LINUX [NETWORK] CHECK: {net_out}")
+    else:
+        print("LINUX [NETWORK] CHECK: FAILED")
+        return False
+
     return True
