@@ -134,7 +134,9 @@ class Agent(ABC):
 
     def _log_part(self) -> list[BaseMessage]:
         return [
-            SystemMessage(f"# Below is the history of your previous actions:\n"),
+            SystemMessage(
+                f"# Below is the full history of everything in chronological order:\n"
+            ),
             *self.interface_chat,
         ]
 
@@ -168,11 +170,14 @@ class Agent(ABC):
 
         try:
             call_result = tools[t_name].invoke(t_args)
+            trace(Trace.TOOL, "Tool output:", call_result)
             t_response.content = str(call_result)
+            self.interface_chat.append(t_response)
             return t_response
         except ValidationError:
             err = f"Tool called with invalid arguments, or invalid argument count."
             t_response.content = err
+            self.interface_chat.append(t_response)
             return t_response
 
     def _execute_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
@@ -183,7 +188,9 @@ class Agent(ABC):
         return t_results
 
     def run_turn(self):
-        tool_llm = self.llm.bind_tools(self.available_tools)
+        tool_llm = self.llm.bind_tools(self.available_tools).with_retry(
+            stop_after_attempt=10  # todo: handle errors better
+        )
         result = tool_llm.invoke(self._generate_prompt())
         if len(result.content) > 0:
             trace(Trace.THINK, f"{self.label} thought: ", str(result.content))

@@ -1,3 +1,5 @@
+from colorama import Back, Style
+
 from debug.visualizer import visualize_tree
 from models.agents.general import General
 from models.chats import create_chat_pair
@@ -16,7 +18,7 @@ from runtimes.runtime import is_linux_ok
 #       user should be able to contact ANY member of the hierarchy
 
 USER_ID = "ROOT_USER"
-
+user_interface = []
 # todo: add mock UserAgent for injecting user into the tree
 
 
@@ -24,13 +26,16 @@ def main():
     is_linux_ok()
     root_manager = General(USER_ID, "Execute the user's orders", "Team Lead")
 
-    user_message = input("Write message to root AI: ")
+    user_message = input(f"{Back.YELLOW}Write message to root AI:{Style.RESET_ALL} ")
 
-    # fixme: Chats seem to be broken. Debug and fix.
     chat_for_self, chat_for_root = create_chat_pair(
         USER_ID,
         root_manager.id,
+        "The User",
+        root_manager.label,
         user_message,
+        root_manager.interface_chat,
+        user_interface,
     )
 
     root_manager.external_chats[USER_ID] = chat_for_root

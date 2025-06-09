@@ -25,7 +25,13 @@ class General(Agent):
         trace(Trace.NEW_TASK, f'{self.label} creates child "{child.label}".')
         self.children.append(child)
         chat_for_self, chat_for_child = create_chat_pair(
-            self.id, child.id, task_description
+            self.id,
+            child.id,
+            self.label,
+            child.label,
+            task_description,
+            self.interface_chat,
+            child.interface_chat,
         )
         self.external_chats |= {child.id: chat_for_self}
         child.external_chats |= {self.id: chat_for_child}
@@ -103,6 +109,10 @@ class General(Agent):
         self.scratchpad_chat.append(SystemMessage(f"## Scratchpad node:\n\n{text}"))
         return "Added entry to scratchpad."
 
+    @staticmethod
+    def _sleep_through_turn():
+        return "Sleeping through this turn."
+
     # tree node - access to technical tools, dispatches subcontractors
     type: Literal["general"] = "general"
     children: list[Agent]
@@ -148,6 +158,11 @@ class General(Agent):
                 func=self._tool_write_to_scratchpad,
                 description="Writes a tiny note to your low-capacity scratchpad.",
             ),
+            StructuredTool.from_function(
+                name="sleep_through_turn",
+                func=self._sleep_through_turn,
+                description="Skips your current turn until something happens. Use when got nothing better to do.",
+            ),
         ]
 
     def _get_child_by_id(self, task_id) -> Agent | None:
@@ -171,6 +186,14 @@ class General(Agent):
             SystemMessage("# Your scratchpad:"),
             *self.scratchpad_chat,
         ]
+
+    def _children_part(self) -> BaseMessage:
+        out = "# List of your workers:\n\n"
+        for child in self.children:
+            child_task = child.creation_task.replace("\n", "<br>")
+            out += f"- {child.label}, id: {child.id}, executing task: {child_task}\n"
+        out += "\n"
+        return SystemMessage(out)
 
     def _generate_prompt(self) -> list[BaseMessage]:
         return [

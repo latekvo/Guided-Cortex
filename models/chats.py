@@ -1,12 +1,19 @@
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
+from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
 
 
 class ExternalChat:
-    def __init__(self, target_id: str):
+    def __init__(
+        self,
+        target_id: str,
+        target_label: str,
+        target_log_chat: list[BaseMessage],
+    ):
         self.target_id: str = target_id
+        self.target_label: str = target_label
         self.chat_history: list[BaseMessage] = []
         # Note: Circ ref - requires manual dealloc
         self.target_chat_ref: ExternalChat | None = None
+        self.target_log_chat: list[BaseMessage] = target_log_chat  # ref
 
     def send_message(self, message: str):
         """Send message to the chat recipients. To be used exclusively by the owner of the chat instance."""
@@ -14,15 +21,26 @@ class ExternalChat:
         #       should probably add SystemMessage notes "now speaking with" or "Chat between YOU and XYZ"
         self.chat_history.append(AIMessage(message))
         self.target_chat_ref.chat_history.append(HumanMessage(message))
+        clean_msg = message.replace("\n", "<br>")
+        msg_notify = SystemMessage(
+            f"New message from {self.target_label} ({self.target_id}): {clean_msg}"
+        )
+        self.target_log_chat.append(msg_notify)
 
 
 def create_chat_pair(
-    starter_id: str, target_id: str, opening_message: str
+    starter_id: str,
+    target_id: str,
+    starter_label: str,
+    target_label: str,
+    opening_message: str,
+    self_log_chat: list[BaseMessage],
+    target_log_chat: list[BaseMessage],
 ) -> tuple[ExternalChat, ExternalChat]:
-    chat_a = ExternalChat(starter_id)
-    chat_b = ExternalChat(target_id)
-    chat_a.target_chat_ref = chat_b
-    chat_b.target_chat_ref = chat_a
-    chat_a.chat_history.append(AIMessage(opening_message))
-    chat_b.chat_history.append(HumanMessage(opening_message))
-    return chat_a, chat_b
+    chat_s = ExternalChat(target_id, starter_label, target_log_chat)
+    chat_t = ExternalChat(starter_id, target_label, self_log_chat)
+    chat_s.target_chat_ref = chat_t
+    chat_t.target_chat_ref = chat_s
+    chat_s.chat_history.append(AIMessage(opening_message))
+    chat_t.chat_history.append(HumanMessage(opening_message))
+    return chat_s, chat_t
