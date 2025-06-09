@@ -1,5 +1,5 @@
 from debug.visualizer import visualize_tree
-from models.agents.manager import Manager
+from models.agents.general import General
 from models.chats import create_chat_pair
 from runtimes.runtime import is_linux_ok
 
@@ -22,10 +22,11 @@ USER_ID = "ROOT_USER"
 
 def main():
     is_linux_ok()
-    root_manager = Manager(USER_ID, "Execute the user's orders", "Chief Director")
+    root_manager = General(USER_ID, "Execute the user's orders", "Team Lead")
 
     user_message = input("Write message to root AI: ")
 
+    # fixme: Chats seem to be broken. Debug and fix.
     chat_for_self, chat_for_root = create_chat_pair(
         USER_ID,
         root_manager.id,
