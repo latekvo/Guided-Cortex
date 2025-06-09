@@ -36,13 +36,12 @@ class Worker(Agent):
         # Worker tasks may also turn out more complex than expected, we don't want this to cause excessive
         # communications with the worker's parent, as it's unlikely they'd find a good solution together.
         trace(Trace.THINK, f"{self.label} uses scratchpad: ", text)
-        self.scratchpad_chat.append(AIMessage(text))
+        self.scratchpad_chat.append(SystemMessage(f"## Scratchpad node:\n\n{text}"))
         return "Added entry to scratchpad."
 
-    # tree leaf - access to practical tools
     type: Literal["worker"] = "worker"
     pause_initiative = False
-    scratchpad_chat: list[AIMessage]  # action history, tool calls, UI & notes
+    scratchpad_chat: list[SystemMessage]  # notes
 
     def __init__(self, parent_id, task, label):
         super().__init__(parent_id, task, label)
@@ -73,10 +72,17 @@ class Worker(Agent):
         # todo: if no new messages, and currently being evaluated (paused), skip turn
         super().run_turn()
 
+    def _scratchpad_part(self) -> list[BaseMessage]:
+        return [
+            SystemMessage("# Your scratchpad:"),
+            *self.scratchpad_chat,
+        ]
+
     def _generate_prompt(self) -> list[BaseMessage]:
         return [
             SystemMessage(worker_system_prompt),
             self._task_part(),
+            *self._scratchpad_part(),  # todo: this might get lost too quick
             *self._chats_part(),
             *self._log_part(),
         ]

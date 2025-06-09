@@ -6,7 +6,7 @@ from langchain_core.tools import StructuredTool
 from debug.tracer import Trace, trace
 from models.agents.base import Agent
 from models.chats import create_chat_pair
-from prompts.manager import manager_system_prompt
+from prompts.general import general_system_prompt
 from runtimes.runtime import use_linux_shell
 
 
@@ -80,7 +80,7 @@ class General(Agent):
 
     def _tool_submit_work(self, work_result: str):
         # todo: submit_work should be dispatching a verifier.
-        #       Right now, it just sends a message to the Manager.
+        #       Right now, it just sends a message to its superior.
         trace(Trace.NEW_TASK, f"{self.label} submits work: ", work_result)
 
         message = AIMessage(
@@ -158,8 +158,6 @@ class General(Agent):
         return None
 
     def run_turn_recurse(self):
-        # this is only an approximation of inverse bfs
-        # the primary point is to execute all workers before the managers
         for child in self.children:
             if isinstance(child, General):
                 child.run_turn_recurse()
@@ -176,7 +174,7 @@ class General(Agent):
 
     def _generate_prompt(self) -> list[BaseMessage]:
         return [
-            SystemMessage(manager_system_prompt),
+            SystemMessage(general_system_prompt),
             self._task_part(),
             *self._scratchpad_part(),  # todo: this might get lost too quick
             *self._chats_part(),
