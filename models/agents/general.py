@@ -7,7 +7,7 @@ from debug.tracer import Trace, trace
 from models.agents.base import Agent
 from models.chats import create_chat_pair
 from prompts.general import general_system_prompt
-from runtimes.runtime import use_linux_shell
+from runtimes.runtime import use_linux_shell, create_linux_instance
 
 
 # General is an all-purpose agent, capable of both managerial and technical tasks.
@@ -120,6 +120,7 @@ class General(Agent):
 
     def __init__(self, parent_id, task, label):
         super().__init__(parent_id, task, label)
+        create_linux_instance(self.id)
         self.scratchpad_chat = []
         self.children = []
         self.available_tools += [
