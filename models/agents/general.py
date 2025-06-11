@@ -7,6 +7,16 @@ from debug.tracer import Trace, trace
 from models.agents.base import Agent
 from models.chats import create_chat_pair
 from prompts.general import general_system_prompt
+from prompts.tool_descriptions import (
+    hire_worker_desc,
+    accept_task_desc,
+    deny_task_desc,
+    kill_worker_desc,
+    submit_work_desc,
+    run_shell_desc,
+    sleep_turn_desc,
+    write_scratchpad_desc,
+)
 from runtimes.runtime import use_linux_shell, create_linux_instance
 
 
@@ -127,42 +137,42 @@ class General(Agent):
             StructuredTool.from_function(
                 name="hire_worker",
                 func=self._tool_hire_worker,
-                description="Schedules creation and execution of the specified task. The label should be tiny, and the task description should be exhaustive.",
+                description=hire_worker_desc,
             ),
             StructuredTool.from_function(
                 name="accept_task_result",
                 func=self._tool_accept_task_result,
-                description="Approve the work once it is high quality and working well.",
+                description=accept_task_desc,
             ),
             StructuredTool.from_function(
                 name="deny_task_result",
                 func=self._tool_deny_task_result,
-                description="Deny the work if it does not meet your use-case, requirements, or quality standards.",
+                description=deny_task_desc,
             ),
             StructuredTool.from_function(
                 name="terminate_worker",
                 func=self._tool_terminate_worker,
-                description="Stops task execution, whether it is finished or still executing.",
+                description=kill_worker_desc,
             ),
             StructuredTool.from_function(
                 name="submit_work",
                 func=self._tool_submit_work,
-                description="Submit your work once the work is high quality and working well.",
+                description=submit_work_desc,
             ),
             StructuredTool.from_function(
                 name="run_linux_shell_command",
                 func=self._tool_run_linux_shell_command,
-                description="Runs a linux shell command.",
+                description=run_shell_desc,
             ),
             StructuredTool.from_function(
                 name="write_to_scratchpad",
                 func=self._tool_write_to_scratchpad,
-                description="Writes a tiny note to your low-capacity scratchpad.",
+                description=write_scratchpad_desc,
             ),
             StructuredTool.from_function(
                 name="sleep_through_turn",
                 func=self._sleep_through_turn,
-                description="Skips your current turn until something happens. Use when got nothing better to do.",
+                description=sleep_turn_desc,
             ),
         ]
 
@@ -197,6 +207,8 @@ class General(Agent):
         return SystemMessage(out)
 
     def _generate_prompt(self) -> list[BaseMessage]:
+        # todo: change of plan, this has to be minimized, chat visibility on-demand, scratchpad 1-turn long
+        #       instead of memory, we will only expand requirements, what else is there to remember?
         return [
             SystemMessage(general_system_prompt),
             self._task_part(),

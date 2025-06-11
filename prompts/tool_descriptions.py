@@ -1,0 +1,8 @@
+hire_worker_desc = "Hires a worker. The `worker_label` should be tiny, and the `task_description` should be exhaustive."
+accept_task_desc = "Approve the work once it is high quality and working well."
+deny_task_desc = "Deny the worker's results if they do not meet your use-case, requirements, or quality standards."
+kill_worker_desc = "Stops task execution, whether it is finished or still executing."
+submit_work_desc = "Submit your work once the work is high quality and working well."
+run_shell_desc = "Runs a linux shell command."
+write_scratchpad_desc = "Writes a tiny note to your low-capacity scratchpad."
+sleep_turn_desc = "Skips your current turn until something happens. Use when got nothing better to do."
