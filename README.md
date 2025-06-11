@@ -1,7 +1,7 @@
 # Guided Cortex
 
 Guided Cortex is a hierarchical agent network.<br>
-It is a PoC for a swarm of LLMs capable of executing complex tasks 
+It is a PoC for a swarm of LLMs capable of executing complex tasks
 without being hindered by context length limits, or by hallucinations.
 
 ## Theory
@@ -16,9 +16,11 @@ verify their solution (or when their solution is verified externally).
 
 And thus:
 
-- LLMs within this project form a recursive structure, each LLM chatting with others, each chat being extremely short, to the point.
+- LLMs within this project form a recursive structure, each LLM chatting with others, each chat being extremely short,
+  to the point.
 - All tasks presented to the hierarchy are shattered recursively until all fragments are conceptually simple.
-- In theory, this will smoothly transform tasks and their resolutions from their abstract state to their practical state - each layer of LLMs down the tree is less abstract and more practical.
+- In theory, this will smoothly transform tasks and their resolutions from their abstract state to their practical
+  state - each layer of LLMs down the tree is less abstract and more practical.
 
 The primary goal of creating this structure, is that no single agent will
 even come close to reaching the token limit, where it starts struggling.
@@ -34,10 +36,9 @@ all while maintaining minimal token usage per agent.
 
 ### Agent types
 
-- **Manager** - a tree node, splits complex/abstract tasks into simpler ones.
-- **Worker** - a tree leaf, executes the most technical task fragments.
-- **Overseer** - an out-of-tree agent managing creation of new agents.
-- **Verifier** - an out-of-tree agent mediating in submission of **Worker's** work.
+- **General** - in-tree agent, capable of both technical and managerial tasks.
+- **Overseer** - out-of-tree agent managing creation of new agents.
+- **Verifier** - out-of-tree agent mediating in submission of **Worker's** work.
 
 ### Agent relations
 
@@ -45,10 +46,7 @@ To be written.
 
 ### Agent tooling
 
-**Workers** are the only agents given technical tools - browser access, shell access.
-**Managers** are given tools focusing on effective communication, nothing more.
-
-Rest of the tools are being still conceptually planned.
+To be written.
 
 ## Implementation (detailed)
 
