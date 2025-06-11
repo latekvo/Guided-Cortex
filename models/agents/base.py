@@ -15,6 +15,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import ValidationError
 
 from debug.tracer import trace, Trace
+from debug.viewer import serialize_prompt_view
 from models.chats import ExternalChat
 from shared.CoreLLM import CoreLLM
 
@@ -32,6 +33,13 @@ from shared.CoreLLM import CoreLLM
 
 # Note: ALL incoming messages are "Human", all generated messages are "AI"
 #       This is necessary for the models to function correctly, to recognize themselves and others.
+
+# What do we want the agent to see?
+# 1. Primary goal - briefly
+# 2. Detailed requirements list - instead of memory, let this be adjusted overtime
+# 3. Detailed plan - and attach "Being executed by child XYZ" to each point
+# Note: Having multiple chats is too confusing to the model
+# Note: I think we can get away with not doing a primary model chat at all, or doing just 1/2 messages lookback
 
 
 class Agent(ABC):
@@ -68,14 +76,14 @@ class Agent(ABC):
         self.external_chats[self.parent_id].send_message(message)
         return "Message sent."
 
-    id: str  # unique but readable, max 8 base36 chars
+    id: str  # unique but readable, max 8 alpha-num chars
     parent_id: str
     label: str  # non-unique
     type: Literal["overseer", "manager", "worker", "verifier"]
 
     creation_task: str
     available_tools: list[BaseTool]
-    interface_chat: list[BaseMessage]  # action history, tool calls, UI & notes
+    primary_chat: list[BaseMessage]  # actions & notifications
 
     # todo: ExternalChat should have direct member ref, but circ refs can be an issue for GC in some known situations.
     external_chats: dict[str, ExternalChat]  # chats opened with other agents
@@ -89,7 +97,7 @@ class Agent(ABC):
         self.parent_id = parent_id
         self.label = label
         self.creation_task = task
-        self.interface_chat = []
+        self.primary_chat = []
         self.external_chats = {}
         self.available_tools = [
             # StructuredTool.from_function(
@@ -137,7 +145,7 @@ class Agent(ABC):
             SystemMessage(
                 f"# Below is the full history of everything in chronological order:\n"
             ),
-            *self.interface_chat,
+            *self.primary_chat,
         ]
 
     def _sign_message(self, text: str):
@@ -172,12 +180,12 @@ class Agent(ABC):
             call_result = tools[t_name].invoke(t_args)
             trace(Trace.TOOL, "Tool output:", call_result)
             t_response.content = str(call_result)
-            self.interface_chat.append(t_response)
+            self.primary_chat.append(t_response)
             return t_response
         except ValidationError:
             err = f"Tool called with invalid arguments, or invalid argument count."
             t_response.content = err
-            self.interface_chat.append(t_response)
+            self.primary_chat.append(t_response)
             return t_response
 
     def _execute_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
@@ -186,6 +194,10 @@ class Agent(ABC):
             res = self._execute_tool_call(tool_call)
             t_results.append(res)
         return t_results
+
+    def get_agent_view(self):
+        prompt = self._generate_prompt()
+        return serialize_prompt_view(prompt)
 
     def run_turn(self):
         tool_llm = self.llm.bind_tools(self.available_tools).with_retry(
@@ -198,11 +210,11 @@ class Agent(ABC):
         if isinstance(result, AIMessage):
             # todo: cram tool result back into self. stores
             if len(result.tool_calls) == 0:
-                self.interface_chat.append(
+                self.primary_chat.append(
                     SystemMessage(
                         "No tools were called. All non-tool input is ignored."
                     )
                 )
             else:
                 # todo: include both tool calls and tool results - interweave or stack them
-                self.interface_chat.extend(self._execute_tool_calls(result.tool_calls))
+                self.primary_chat.extend(self._execute_tool_calls(result.tool_calls))

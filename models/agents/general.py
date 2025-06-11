@@ -40,8 +40,8 @@ class General(Agent):
             self.label,
             child.label,
             task_description,
-            self.interface_chat,
-            child.interface_chat,
+            self.primary_chat,
+            child.primary_chat,
         )
         self.external_chats |= {child.id: chat_for_self}
         child.external_chats |= {self.id: chat_for_child}

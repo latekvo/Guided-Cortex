@@ -1,4 +1,4 @@
-from colorama import Back, Style
+from colorama import Back, Style, Fore
 
 from debug.visualizer import visualize_tree
 from models.agents.general import General
@@ -21,6 +21,8 @@ USER_ID = "ROOT_USER"
 user_interface = []
 # todo: add mock UserAgent for injecting user into the tree
 
+SECTION_SEP = f"{Fore.LIGHTRED_EX}{Back.LIGHTWHITE_EX}-------------------------------{Style.RESET_ALL}"
+
 
 def main():
     is_linux_ok()
@@ -34,7 +36,7 @@ def main():
         "The User",
         root_manager.label,
         user_message,
-        root_manager.interface_chat,
+        root_manager.primary_chat,
         user_interface,
     )
 
@@ -43,7 +45,11 @@ def main():
     while True:
         root_manager.run_turn_recurse()
         visualize_tree(root_manager)
+        print(SECTION_SEP)
+        print(root_manager.get_agent_view())
+        print(SECTION_SEP)
         user_message = input("Press enter to skip. Write message to root AI: ")
+        print(SECTION_SEP)
         if user_message == "":
             continue
         chat_for_self.send_message(user_message)
