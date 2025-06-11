@@ -116,7 +116,7 @@ class General(Agent):
         # Worker tasks may also turn out more complex than expected, we don't want this to cause excessive
         # communications with the worker's parent, as it's unlikely they'd find a good solution together.
         trace(Trace.THINK, f"{self.label} uses scratchpad: ", text)
-        self.scratchpad_chat.append(SystemMessage(f"## Scratchpad node:\n\n{text}"))
+        self.scratchpad_chat.append(SystemMessage(f"- {text}"))
         return "Added entry to scratchpad."
 
     @staticmethod

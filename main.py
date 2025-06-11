@@ -22,13 +22,14 @@ user_interface = []
 # todo: add mock UserAgent for injecting user into the tree
 
 SECTION_SEP = f"{Fore.LIGHTRED_EX}{Back.LIGHTWHITE_EX}-------------------------------{Style.RESET_ALL}"
+INPUT_MSG = f"{Back.YELLOW}Write message to root AI:{Style.RESET_ALL} "
 
 
 def main():
     is_linux_ok()
     root_manager = General(USER_ID, "Execute the user's orders", "Team Lead")
 
-    user_message = input(f"{Back.YELLOW}Write message to root AI:{Style.RESET_ALL} ")
+    user_message = input(INPUT_MSG)
 
     chat_for_self, chat_for_root = create_chat_pair(
         USER_ID,
@@ -48,7 +49,7 @@ def main():
         print(SECTION_SEP)
         print(root_manager.get_agent_view())
         print(SECTION_SEP)
-        user_message = input("Press enter to skip. Write message to root AI: ")
+        user_message = input(f"{Back.YELLOW}Press enter to skip. {INPUT_MSG}")
         print(SECTION_SEP)
         if user_message == "":
             continue

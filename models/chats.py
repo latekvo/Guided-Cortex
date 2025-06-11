@@ -1,4 +1,4 @@
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 
 
 class ExternalChat:
@@ -22,8 +22,8 @@ class ExternalChat:
         self.chat_history.append(AIMessage(message))
         self.target_chat_ref.chat_history.append(HumanMessage(message))
         clean_msg = message.replace("\n", "<br>")
-        msg_notify = SystemMessage(
-            f"New message from {self.target_label} ({self.target_id}): {clean_msg}"
+        msg_notify = HumanMessage(
+            f"Notification: new message from {self.target_label} ({self.target_id}): {clean_msg}"
         )
         self.target_log_chat.append(msg_notify)
 
@@ -37,8 +37,8 @@ def create_chat_pair(
     self_log_chat: list[BaseMessage],
     target_log_chat: list[BaseMessage],
 ) -> tuple[ExternalChat, ExternalChat]:
-    chat_s = ExternalChat(target_id, starter_label, target_log_chat)
-    chat_t = ExternalChat(starter_id, target_label, self_log_chat)
+    chat_s = ExternalChat(target_id, target_label, target_log_chat)
+    chat_t = ExternalChat(starter_id, starter_label, self_log_chat)
     chat_s.target_chat_ref = chat_t
     chat_t.target_chat_ref = chat_s
     chat_s.chat_history.append(AIMessage(opening_message))

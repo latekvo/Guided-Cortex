@@ -1,4 +1,4 @@
-from colorama import Fore, Style
+from colorama import Fore, Style, Back
 from langchain_core.messages import (
     BaseMessage,
     AIMessage,
@@ -12,6 +12,10 @@ AI_MARK = Fore.CYAN
 HUMAN_MARK = Fore.GREEN
 TOOL_MARK = Fore.YELLOW
 
+LB = Back.LIGHTBLACK_EX
+LY = Back.LIGHTYELLOW_EX
+PART_SEP = f"{Style.RESET_ALL}  {LB} {LY} {Style.RESET_ALL}\n"
+
 
 def serialize_prompt_view(messages: list[BaseMessage]):
     out = ""
@@ -23,6 +27,6 @@ def serialize_prompt_view(messages: list[BaseMessage]):
         elif isinstance(message, HumanMessage):
             out += HUMAN_MARK
         elif isinstance(message, ToolMessage):
-            out += HUMAN_MARK
-        out += f"{message.content}{Style.RESET_ALL}"
+            out += TOOL_MARK
+        out += f"{message.content}{Style.RESET_ALL}{PART_SEP}"
     return out
