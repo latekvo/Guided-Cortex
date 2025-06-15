@@ -12,12 +12,13 @@ These commands prepare the envs, execution is performed within python.
 ### Prepare
 
 - **linux**:
-  - Run: `docker build -t linux ./linux`
+    - If re-building: `docker kill linux-shell`
+    - Run: `docker build -t linux ./linux`
 
 ### Test run
 
 - **linux**:
-  - Run: `docker run -i --rm --network=none --cpus="0.5" --memory="128m" --cap-drop=ALL linux`
+    - Run: `docker run -i --rm --network=none --cpus="0.5" --memory="128m" --cap-drop=ALL linux`
 
 > Todo: Integrate docker set-up into the python script.
 
