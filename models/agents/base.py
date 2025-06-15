@@ -179,12 +179,10 @@ class Agent(ABC):
             call_result = tools[t_name].invoke(t_args)
             trace(Trace.TOOL, "Tool output:", call_result)
             t_response.content = str(call_result)
-            self.primary_chat.append(t_response)
             return t_response
         except ValidationError:
             err = f"Tool called with invalid arguments, or invalid argument count."
             t_response.content = err
-            self.primary_chat.append(t_response)
             return t_response
 
     def _execute_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolMessage]:
