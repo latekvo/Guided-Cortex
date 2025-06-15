@@ -34,14 +34,15 @@ class General(Agent):
         child = General(self.id, task_description, worker_label)
         trace(Trace.NEW_TASK, f'{self.label} creates child "{child.label}".')
         self.children.append(child)
+
         chat_for_self, chat_for_child = create_chat_pair(
             self.id,
             child.id,
             self.label,
             child.label,
+            lambda: self.queue_response(child.id),
+            lambda: child.queue_response(self.id),
             task_description,
-            self.primary_chat,
-            child.primary_chat,
         )
         self.external_chats |= {child.id: chat_for_self}
         child.external_chats |= {self.id: chat_for_child}
@@ -133,7 +134,7 @@ class General(Agent):
         create_linux_instance(self.id)
         self.scratchpad_chat = []
         self.children = []
-        self.available_tools += [
+        self._available_tools += [
             StructuredTool.from_function(
                 name="hire_worker",
                 func=self._tool_hire_worker,
@@ -198,22 +199,23 @@ class General(Agent):
             *self.scratchpad_chat,
         ]
 
-    def _children_part(self) -> BaseMessage:
-        out = "# List of your workers:\n\n"
+    def _worker_status_part(self) -> list[SystemMessage]:
+        if len(self.children) == 0:
+            return []
+        out = "# List of employees currently working for you:\n\n"
         for child in self.children:
             child_task = child.creation_task.replace("\n", "<br>")
-            out += f"- {child.label}, id: {child.id}, executing task: {child_task}\n"
+            out += f"- {child.label} [id: {child.id}] is executing task: {child_task}\n"
         out += "\n"
-        return SystemMessage(out)
+        return [SystemMessage(out)]
 
-    def _generate_prompt(self) -> list[BaseMessage]:
+    def _generate_prompt(self, target_id: str) -> list[BaseMessage]:
         # todo: change of plan, this has to be minimized, chat visibility on-demand, scratchpad 1-turn long
         #       instead of memory, we will only expand requirements, what else is there to remember?
         return [
             SystemMessage(general_system_prompt),
             self._task_part(),
-            *self._scratchpad_part(),  # todo: this might get lost too quick
-            *self._chats_part(),
-            # todo: add UI with all the children, todos, etc here
-            *self._log_part(),
+            *self._scratchpad_part(),  # todo: remake into shared objective-memory
+            *self._worker_status_part(),
+            *self._chat_part(target_id),
         ]

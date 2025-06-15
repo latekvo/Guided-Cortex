@@ -32,7 +32,7 @@ class Overseer(Agent):
 
     def __init__(self, parent_id, task, label):
         super().__init__(parent_id, task, label)
-        self.available_tools += [
+        self._available_tools += [
             self.approve_task,
             self.modify_and_approve_task,
             self.deny_task_creation,
@@ -43,8 +43,8 @@ class Overseer(Agent):
             # todo: split up properly
             SystemMessage(
                 f"{overseer_system_prompt}\n\n"
-                f"{self._chats_part()}\n\n"
-                f"{self._log_part()}\n\n"
+                f"{self._child_status_part()}\n\n"
+                f"{self._chat_part()}\n\n"
                 f"{self._task_part()}"
             )
         ]

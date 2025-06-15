@@ -36,9 +36,9 @@ def main():
         root_manager.id,
         "The User",
         root_manager.label,
+        lambda: None,
+        lambda: root_manager.queue_response(USER_ID),
         user_message,
-        root_manager.primary_chat,
-        user_interface,
     )
 
     root_manager.external_chats[USER_ID] = chat_for_root
@@ -47,7 +47,7 @@ def main():
         root_manager.run_turn_recurse()
         visualize_tree(root_manager)
         print(SECTION_SEP)
-        print(root_manager.get_agent_view())
+        print(root_manager.get_agent_view(USER_ID))
         print(SECTION_SEP)
         user_message = input(f"{Back.YELLOW}Press enter to skip. {INPUT_MSG}")
         print(SECTION_SEP)

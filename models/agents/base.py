@@ -75,14 +75,14 @@ class Agent(ABC):
         self.external_chats[self.parent_id].send_message(message)
         return "Message sent."
 
-    id: str  # unique but readable, max 8 alpha-num chars
+    id: str  # unique but readable, 6 alpha-num chars
     parent_id: str
     label: str  # non-unique
     type: Literal["overseer", "manager", "worker", "verifier"]
 
     creation_task: str
-    available_tools: list[BaseTool]
-    primary_chat: list[BaseMessage]  # actions & notifications
+    _response_queue: list[str]  # queue of all agent ids pending a response
+    _available_tools: list[BaseTool]
 
     # todo: ExternalChat should have direct member ref, but circ refs can be an issue for GC in some known situations.
     external_chats: dict[str, ExternalChat]  # chats opened with other agents
@@ -96,14 +96,9 @@ class Agent(ABC):
         self.parent_id = parent_id
         self.label = label
         self.creation_task = task
-        self.primary_chat = []
+        self._response_queue = []
         self.external_chats = {}
-        self.available_tools = [
-            # StructuredTool.from_function(
-            #     name="broadcast_question",
-            #     func=self._tool_broadcast_question,
-            #     description="Broadcasts a question within your team, opens a chat with the peer who can answer you.",
-            # ),
+        self._available_tools = [
             StructuredTool.from_function(
                 name="message_peer",
                 func=self._tool_message_peer,
@@ -127,24 +122,13 @@ class Agent(ABC):
     def _task_part(self) -> SystemMessage:
         return SystemMessage(f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}")
 
-    def _chats_part(self) -> list[BaseMessage]:
-        # todo: show last N messages only (dynamically adjust N to fit max usable tok limit)
-        combined: list[BaseMessage] = [
-            SystemMessage(
-                f"# Below is the list of different the conversations you're currently taking part in:\n"
-            )
-        ]
-        for chat in self.external_chats.values():
-            combined.append(SystemMessage(f"Your conversation with {chat.target_id}:"))
-            combined.extend(chat.chat_history)
-        return combined
-
-    def _log_part(self) -> list[BaseMessage]:
+    def _chat_part(self, target_id: str) -> list[BaseMessage]:
         return [
             SystemMessage(
                 f"# Below is the full history of everything in chronological order:\n"
             ),
-            *self.primary_chat,
+            # todo: handle `None`
+            *self.external_chats.get(target_id).chat_history,
         ]
 
     def _sign_message(self, text: str):
@@ -154,11 +138,11 @@ class Agent(ABC):
         return f'{{"author": "{self.id}", "message": "{clean_text}"}}\n'
 
     @abstractmethod
-    def _generate_prompt(self) -> list[BaseMessage]:
+    def _generate_prompt(self, target_id: str) -> list[BaseMessage]:
         raise NotImplementedError()
 
     def _execute_tool_call(self, tool_call: ToolCall) -> ToolMessage:
-        tools = {t.name: t for t in self.available_tools}
+        tools = {t.name: t for t in self._available_tools}
         t_id = tool_call["id"]
         t_name = tool_call["name"]
         t_args = tool_call["args"]
@@ -177,7 +161,7 @@ class Agent(ABC):
 
         try:
             call_result = tools[t_name].invoke(t_args)
-            trace(Trace.TOOL, "Tool output:", call_result)
+            trace(Trace.TOOL, f"Tool {t_name}({t_args}) output:", call_result)
             t_response.content = str(call_result)
             return t_response
         except ValidationError:
@@ -192,26 +176,46 @@ class Agent(ABC):
             t_results.append(res)
         return t_results
 
-    def get_agent_view(self):
-        prompt = self._generate_prompt()
+    def get_agent_view(self, target_id: str):
+        prompt = self._generate_prompt(target_id)
         return serialize_prompt_view(prompt)
 
-    def run_turn(self):
-        tool_llm = self.llm.bind_tools(self.available_tools).with_retry(
-            stop_after_attempt=10  # todo: handle errors better
-        )
-        result = tool_llm.invoke(self._generate_prompt())
+    def queue_response(self, respond_to_id: str):
+        self._response_queue.append(respond_to_id)
+        # keep deduped
+        self._response_queue = list(set(self._response_queue))
+
+    def _respond_to_target(self, target_id: str):
+        # todo: handle errors better
+        tool_llm = self.llm.bind_tools(self._available_tools).with_retry()
+
+        p = self._generate_prompt(target_id)
+
+        result = tool_llm.invoke(self._generate_prompt(target_id))
+
         if len(result.content) > 0:
-            trace(Trace.THINK, f"{self.label} thought: ", str(result.content))
+            self.external_chats.get(target_id).send_message(result.content)
+
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
-            # todo: cram tool result back into self. stores
+            # tool call results are saved to the chat local-side only
             if len(result.tool_calls) == 0:
-                self.primary_chat.append(
-                    SystemMessage(
-                        "No tools were called. All non-tool input is ignored."
-                    )
+                self.external_chats.get(target_id).chat_history.append(
+                    ToolMessage("No tools were called.")
                 )
             else:
-                # todo: include both tool calls and tool results - interweave or stack them
-                self.primary_chat.extend(self._execute_tool_calls(result.tool_calls))
+                target_chat = self.external_chats.get(target_id)
+                for tool_call in result.tool_calls:
+                    # tool-calls are private to the caller. todo: test if this approach is good
+                    t_name = tool_call["name"]
+                    t_args = tool_call["args"]
+                    self_msg = AIMessage(f"I'm calling: {t_name}({t_args})")
+                    target_chat.chat_history.append(self_msg)
+                target_chat.chat_history.extend(
+                    self._execute_tool_calls(result.tool_calls)
+                )
+
+    def run_turn(self):
+        for target_id in self._response_queue:
+            self._respond_to_target(target_id)
+        self._response_queue.clear()
