@@ -5,7 +5,6 @@ from langchain_core.tools import StructuredTool
 
 from debug.tracer import Trace, trace
 from models.agents.base import Agent
-from models.chats import create_chat_pair
 from prompts.general import general_system_prompt
 from prompts.tool_descriptions import (
     hire_worker_desc,
@@ -18,6 +17,8 @@ from prompts.tool_descriptions import (
     write_scratchpad_desc,
 )
 from runtimes.runtime import use_linux_shell, create_linux_instance
+from shared.AgentPool import AgentPool
+from shared.ExternalChat import create_chat_pair
 
 
 # General is an all-purpose agent, capable of both managerial and technical tasks.
@@ -40,8 +41,6 @@ class General(Agent):
             child.id,
             self.label,
             child.label,
-            lambda: self.queue_response(child.id),
-            lambda: child.queue_response(self.id),
             task_description,
         )
         self.external_chats |= {child.id: chat_for_self}
@@ -62,9 +61,7 @@ class General(Agent):
             "Task has been completed.",
         )
 
-        del child.external_chats[self.id].target_chat_ref  # circ dep
         del child.external_chats[self.id]
-        del self.external_chats[child.id].target_chat_ref  # circ dep
         del self.external_chats[child.id]
         self.children.remove(child)
         return f"Task {task_id} closed as completed."
@@ -77,8 +74,10 @@ class General(Agent):
         chat = self._get_chat_by_target_id(task_id)
         if chat is None:
             return f"Error: Task {task_id} not found."
-        chat.send_message(f"NOTIFICATION: Task result has been denied: {denial_reason}")
-        return "Task result denied. Notified worker about the denial reason."
+
+        msg = f"NOTIFICATION: Task result has been denied for the following reason: {denial_reason}"
+        AgentPool().message(self.id, task_id, msg)
+        return "The task result has been denied."
 
     def _tool_terminate_worker(self, task_id: str):
         child = self._get_child_by_id(task_id)

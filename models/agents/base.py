@@ -15,8 +15,9 @@ from pydantic import ValidationError
 
 from debug.tracer import trace, Trace
 from debug.viewer import serialize_prompt_view
-from models.chats import ExternalChat
+from shared.AgentPool import AgentPool
 from shared.CoreLLM import CoreLLM
+from shared.ExternalChat import ExternalChat
 
 
 # All functions HAVE to be defined within the agent classes.
@@ -52,7 +53,7 @@ class Agent(ABC):
             # New chats are opened only for special occasions, e.g. resolving conflicts.
             return f"Chat to {peer_id} does not exist."
         trace(Trace.CHAT, f"[{self.label} -> {peer_id}]: ", message)
-        self.external_chats[peer_id].send_message(message)
+        AgentPool().message(self.id, peer_id, message)
         return "Message sent."
 
     def _tool_close_peer_chat(self, peer_id: str):
@@ -72,7 +73,7 @@ class Agent(ABC):
     def _tool_message_superior(self, message: str):
         # direct communication with parent
         trace(Trace.CHAT, f"[{self.label} -> {self.parent_id} (superior)]: ", message)
-        self.external_chats[self.parent_id].send_message(message)
+        AgentPool().message(self.id, self.parent_id, message)
         return "Message sent."
 
     id: str  # unique but readable, 6 alpha-num chars
@@ -194,7 +195,7 @@ class Agent(ABC):
         result = tool_llm.invoke(self._generate_prompt(target_id))
 
         if len(result.content) > 0:
-            self.external_chats.get(target_id).send_message(result.content)
+            AgentPool().message(self.id, target_id, result.content)
 
         # smart-cast to only possible output
         if isinstance(result, AIMessage):

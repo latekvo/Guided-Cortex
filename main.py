@@ -2,8 +2,9 @@ from colorama import Back, Style, Fore
 
 from debug.visualizer import visualize_tree
 from models.agents.general import General
-from models.chats import create_chat_pair
 from runtimes.runtime import is_linux_ok
+from shared.AgentPool import AgentPool
+from shared.ExternalChat import create_chat_pair
 
 # note: We're not doing any persistent thinking functions
 #       Managers should be able to divide the tasks and respond to events,
@@ -31,13 +32,11 @@ def main():
 
     user_message = input(INPUT_MSG)
 
-    chat_for_self, chat_for_root = create_chat_pair(
+    _, chat_for_root = create_chat_pair(
         USER_ID,
         root_manager.id,
         "The User",
         root_manager.label,
-        lambda: None,
-        lambda: root_manager.queue_response(USER_ID),
         user_message,
     )
 
@@ -53,7 +52,7 @@ def main():
         print(SECTION_SEP)
         if user_message == "":
             continue
-        chat_for_self.send_message(user_message)
+        AgentPool().message(USER_ID, root_manager.id, user_message)
 
 
 main()
