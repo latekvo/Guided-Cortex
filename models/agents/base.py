@@ -199,21 +199,14 @@ class Agent(ABC):
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
             # tool call results are saved to the chat local-side only
-            if len(result.tool_calls) == 0:
-                self.external_chats.get(target_id).chat_history.append(
-                    ToolMessage("No tools were called.")
-                )
-            else:
-                target_chat = self.external_chats.get(target_id)
-                for tool_call in result.tool_calls:
-                    # tool-calls are private to the caller. todo: test if this approach is good
-                    t_name = tool_call["name"]
-                    t_args = tool_call["args"]
-                    self_msg = AIMessage(f"I'm calling: {t_name}({t_args})")
-                    target_chat.chat_history.append(self_msg)
-                target_chat.chat_history.extend(
-                    self._execute_tool_calls(result.tool_calls)
-                )
+            target_chat = self.external_chats.get(target_id)
+            for tool_call in result.tool_calls:
+                # tool-calls are private to the caller. todo: test if this approach is good
+                t_name = tool_call["name"]
+                t_args = tool_call["args"]
+                self_msg = AIMessage(f"I'm calling: {t_name}({t_args})")
+                target_chat.chat_history.append(self_msg)
+            target_chat.chat_history.extend(self._execute_tool_calls(result.tool_calls))
 
     def run_turn(self):
         for target_id in self._response_queue:

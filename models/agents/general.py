@@ -41,10 +41,13 @@ class General(Agent):
             child.id,
             self.label,
             child.label,
-            task_description,
         )
-        self.external_chats |= {child.id: chat_for_self}
-        child.external_chats |= {self.id: chat_for_child}
+
+        self.external_chats[child.id] = chat_for_self
+        child.external_chats[self.id] = chat_for_child
+
+        AgentPool().message(self.id, child.id, task_description)
+
         return f"Task '{child.id}' created successfully."
 
     def _tool_accept_task_result(self, task_id: str):
