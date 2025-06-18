@@ -92,8 +92,9 @@ class Agent(ABC):
     token_limit: int  # todo: implement
 
     def __init__(self, parent_id: str, task: str, label: str):
-        self.llm = CoreLLM()
         self.id = uuid4().hex[:6]  # todo: add collision avoidance, collisions likely
+        AgentPool().register(self.id, self)
+        self.llm = CoreLLM()
         self.parent_id = parent_id
         self.label = label
         self.creation_task = task
@@ -189,8 +190,6 @@ class Agent(ABC):
     def _respond_to_target(self, target_id: str):
         # todo: handle errors better
         tool_llm = self.llm.bind_tools(self._available_tools).with_retry()
-
-        p = self._generate_prompt(target_id)
 
         result = tool_llm.invoke(self._generate_prompt(target_id))
 

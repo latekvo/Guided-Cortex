@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_core.messages import AIMessage, HumanMessage
 
 
@@ -17,8 +19,15 @@ class AgentPool:
             cls._instance._init()
         return cls._instance
 
+    def register(self, agent_id, agent: Any):
+        # note: could move creation here if we moved methods out of Agent
+        self._store[agent_id] = agent
+
     def get(self, agent_id):
         return self._store.get(agent_id)
+
+    def remove(self, agent_id):
+        return self._store.pop(agent_id)
 
     def execute(self, agent_id):
         return self.get(agent_id).run_turn()
@@ -28,7 +37,7 @@ class AgentPool:
         receiver = self.get(to_id)
 
         if sender is None or receiver is None:
-            raise RuntimeError("Invalid message sender/receiver.")
+            raise RuntimeError(f"Invalid sender/receiver: {sender}/{receiver}")
 
         sender_chat = sender.external_chats.get(to_id)
         receiver_chat = receiver.external_chats.get(from_id)
