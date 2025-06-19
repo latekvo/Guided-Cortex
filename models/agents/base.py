@@ -48,12 +48,12 @@ class Agent(ABC):
     #     # overseer determines if the question can and should be answered, then routes it appropriately
     #     return "Broadcasting questions is not possible yet."
 
-    def _tool_message_peer(self, message: str, peer_id: str):
-        if peer_id not in self.external_chats:
+    def _tool_send_message(self, message: str, target_id: str):
+        if target_id not in self.external_chats:
             # New chats are opened only for special occasions, e.g. resolving conflicts.
-            return f"Chat to {peer_id} does not exist."
-        trace(Trace.CHAT, f"[{self.label} -> {peer_id}]: ", message)
-        AgentPool().message(self.id, peer_id, message)
+            return f"Chat to {target_id} does not exist."
+        trace(Trace.CHAT, f"[{self.label} -> {target_id}]: ", message)
+        AgentPool().message(self.id, target_id, message)
         return "Message sent."
 
     def _tool_close_peer_chat(self, peer_id: str):
@@ -71,7 +71,6 @@ class Agent(ABC):
         return "Closed chat."
 
     def _tool_message_superior(self, message: str):
-        # direct communication with parent
         trace(Trace.CHAT, f"[{self.label} -> {self.parent_id} (superior)]: ", message)
         AgentPool().message(self.id, self.parent_id, message)
         return "Message sent."
@@ -101,9 +100,16 @@ class Agent(ABC):
         self._response_queue = []
         self.external_chats = {}
         self._available_tools = [
+            # todo: remove all communication tools - the tree agents should only act as project scaffold.
+            #       the only reason why they'd need to talk to each other, is project interventions and corrections.
+            #       ^ corrections should be offloaded to separate, off-tree agents.
+            #       This way, in-tree agents don't have to deal with complexities of context switching.
+            # todo: agent should:
+            #       - sleep if it has children and no queued responses
+            #       - work if it is has no children
             StructuredTool.from_function(
-                name="message_peer",
-                func=self._tool_message_peer,
+                name="send_message",
+                func=self._tool_send_message,
                 description="Sends a message to one of your open peer chats.",
             ),
             StructuredTool.from_function(
@@ -122,14 +128,11 @@ class Agent(ABC):
         return self.external_chats.get(target_id)
 
     def _task_part(self) -> SystemMessage:
-        return SystemMessage(f"# YOUR PRIMARY OBJECTIVE: {self.creation_task}")
+        return SystemMessage(f"# Your primary objective: {self.creation_task}\n")
 
     def _chat_part(self, target_id: str) -> list[BaseMessage]:
         return [
-            SystemMessage(
-                f"# Below is the full history of everything in chronological order:\n"
-            ),
-            # todo: handle `None`
+            SystemMessage(f"Your chat with {target_id}:\n\n"),
             *self.external_chats.get(target_id).chat_history,
         ]
 
