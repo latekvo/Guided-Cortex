@@ -1,3 +1,4 @@
+import os
 import subprocess
 from subprocess import Popen, TimeoutExpired
 
@@ -34,7 +35,15 @@ subprocess.run(
 def create_linux_instance(instance_id: str):
     global linux_instances
     shell = subprocess.Popen(
-        ["docker", "exec", "-i", "linux-shell", "/bin/bash"],
+        [
+            "docker",
+            "exec",
+            "-i",
+            "-w",  # use home dir
+            "/home/ai",
+            "linux-shell",
+            "/bin/bash",
+        ],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
