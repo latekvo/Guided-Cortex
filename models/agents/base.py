@@ -19,17 +19,9 @@ from shared.AgentPool import AgentPool
 from shared.CoreLLM import CoreLLM
 from shared.ExternalChat import ExternalChat
 
-
-# All functions HAVE to be defined within the agent classes.
-# This is the simplest way for them to interact with the hierarchy and agent-specific props.
-
 # We want to add 'reasoning' to each tool call.
 # Do we have to convert the tools to structural outputs?
 # As a hack, could just add `_reasoning: str` tool arg.
-
-# todo: tools cannot be directly defined within class due to internal langchain issues
-#  as a workaround, they can be used as a wrapper to internal function closures
-#  as a proper fix, all tools have to be converted to structured output models
 
 # Note: ALL incoming messages are "Human", all generated messages are "AI"
 #       This is necessary for the models to function correctly, to recognize themselves and others.
@@ -40,6 +32,12 @@ from shared.ExternalChat import ExternalChat
 # 3. Detailed plan - and attach "Being executed by child XYZ" to each point
 # Note: Having multiple chats is too confusing to the model
 # Note: I think we can get away with not doing a primary model chat at all, or doing just 1/2 messages lookback
+
+# Agents may fall into prolonged sleep.
+# This is good, but may lead to stagnation.
+# Nudge allows agents to occasionally wake up and check their surroundings.
+ROUNDS_TO_NUDGE = 7
+NUDGE_PROMPT = "Hey, just checking in on the progress."
 
 
 class Agent(ABC):
@@ -90,6 +88,9 @@ class Agent(ABC):
     llm: BaseChatModel  # ref to predefined class
     token_limit: int  # todo: implement
 
+    # misc. optimizations
+    idle_turns_count: int
+
     def __init__(self, parent_id: str, task: str, label: str):
         self.id = uuid4().hex[:6]  # todo: add collision avoidance, collisions likely
         AgentPool().register(self.id, self)
@@ -99,6 +100,7 @@ class Agent(ABC):
         self.creation_task = task
         self._response_queue = []
         self.external_chats = {}
+        self.idle_turns_count = 0
         self._available_tools = [
             # todo: remove all communication tools - the tree agents should only act as project scaffold.
             #       the only reason why they'd need to talk to each other, is project interventions and corrections.
@@ -209,9 +211,18 @@ class Agent(ABC):
                 t_args = tool_call["args"]
                 self_msg = AIMessage(f"I'm calling: {t_name}({t_args})")
                 target_chat.chat_history.append(self_msg)
-            target_chat.chat_history.extend(self._execute_tool_calls(result.tool_calls))
+
+            t_results = self._execute_tool_calls(result.tool_calls)
+            target_chat.chat_history.extend(t_results)
+            if len(t_results) > 0:
+                self.queue_response(target_id)
 
     def run_turn(self):
+        if len(self._response_queue) == 0:
+            self.idle_turns_count += 1
+        if self.idle_turns_count == ROUNDS_TO_NUDGE:
+            AgentPool().message(self.parent_id, self.id, NUDGE_PROMPT)
         for target_id in self._response_queue:
             self._respond_to_target(target_id)
+            self.idle_turns_count = 0
         self._response_queue.clear()
