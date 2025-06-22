@@ -8,12 +8,18 @@ from subprocess import Popen, TimeoutExpired
 
 linux_instances: dict[str, Popen[str]] = {}
 
+local_workspace_dir = os.path.abspath("workspace")
+
+os.makedirs(local_workspace_dir, exist_ok=True)
+
 subprocess.run(
     [
         "docker",
         "run",
         "--rm",
         "-dit",
+        "-v",  # mounts fs locally
+        f"{local_workspace_dir}:/home/ai",
         # "--network=none",  # disabled network
         "--network=bridge",  # enabled network
         "--cpus=0.5",
@@ -50,14 +56,17 @@ def create_linux_instance(instance_id: str):
         text=True,
         bufsize=1,
     )
-    linux_instances |= {instance_id: shell}
+    linux_instances[instance_id] = shell
 
 
 def delete_linux_instance(instance_id: str):
     linux_instances.pop(instance_id, None)
 
 
-SHELL_DEFAULT_TIMEOUT = 10
+# todo:
+#  - Make all shell usages explicitly blocking & async
+#  - Then, raise timeout to something like 15 minutes - allows for builds, installs, compilations.
+SHELL_DEFAULT_TIMEOUT = 120
 
 
 def use_linux_shell(
@@ -81,6 +90,13 @@ def use_linux_shell(
     except TimeoutExpired:
         shell.kill()
         return f"Timeout error: Command terminated after {timeout} seconds."
+
+
+def get_project_tree() -> str | None:
+    create_linux_instance("__tree")
+    exclude_list = "|".join(["bin", "lib", "node_modules", "dist"])
+    exclude_arg = f'"{exclude_list}"'
+    return use_linux_shell(f"tree -I {exclude_arg}", "__tree")
 
 
 TEST_CMD_ECHO = 'echo "OK"'

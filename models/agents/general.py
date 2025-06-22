@@ -13,7 +13,7 @@ from prompts.tool_descriptions import (
     sleep_turn_desc,
     write_scratchpad_desc,
 )
-from runtimes.runtime import use_linux_shell, create_linux_instance
+from runtimes.runtime import use_linux_shell, create_linux_instance, get_project_tree
 from shared.AgentPool import AgentPool
 from shared.ExternalChat import create_chat_pair
 
@@ -121,10 +121,17 @@ class General(Agent):
     def _memory_part(self) -> list[BaseMessage]:
         if len(self.memory_notes) == 0:
             return []
-        out = "# Your dynamic memory:"
+        out = "# Your dynamic memory:\n"
         for mem in self.memory_notes:
             out += f"{mem}\n"
         return [SystemMessage(out)]
+
+    @staticmethod
+    def _project_tree_part() -> list[BaseMessage]:
+        tree = get_project_tree()
+        if tree is None:
+            return []
+        return [SystemMessage(f"# Full project tree:\n\n{tree}")]
 
     def _worker_status_part(self) -> list[SystemMessage]:
         if len(self.children) == 0:
@@ -137,10 +144,10 @@ class General(Agent):
         return [SystemMessage(out)]
 
     def _generate_prompt(self, target_id: str) -> list[BaseMessage]:
-        # todo: change of plan, this has to be minimized, chat visibility on-demand, scratchpad 1-turn long
-        #       instead of memory, we will only expand requirements, what else is there to remember?
+        # todo: add pre-response scratchpads
         return [
             SystemMessage(general_system_prompt),
+            *self._project_tree_part(),
             self._task_part(),
             *self._memory_part(),
             *self._worker_status_part(),
