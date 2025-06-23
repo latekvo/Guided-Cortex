@@ -84,6 +84,11 @@ def use_linux_shell(
     # fixme: this is a quick patch to fix .communicate crashes
     create_linux_instance(instance_id)
 
+    # todo: test if `yes` can be appended to EVERY command called
+    forced_cmds = ["npx"]
+    for cmd in forced_cmds:
+        command_text = command_text.replace(cmd, f"yes | {cmd}")
+
     try:
         outs, errs = shell.communicate(command_text, timeout=timeout)
         return outs + errs
