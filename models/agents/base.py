@@ -198,20 +198,12 @@ class Agent(ABC):
 
         result = tool_llm.invoke(self._generate_prompt(target_id))
 
-        if len(result.content) > 0:
-            AgentPool().message(self.id, target_id, result.content)
-
         # smart-cast to only possible output
         if isinstance(result, AIMessage):
+            AgentPool().message(self.id, target_id, result)
+
             # tool call results are saved to the chat local-side only
             target_chat = self.external_chats.get(target_id)
-            for tool_call in result.tool_calls:
-                # tool-calls are private to the caller. todo: test if this approach is good
-                t_name = tool_call["name"]
-                t_args = tool_call["args"]
-                self_msg = AIMessage(f"I'm calling: {t_name}({t_args})")
-                target_chat.chat_history.append(self_msg)
-
             t_results = self._execute_tool_calls(result.tool_calls)
             target_chat.chat_history.extend(t_results)
             if len(t_results) > 0:

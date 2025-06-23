@@ -32,9 +32,13 @@ class AgentPool:
     def execute(self, agent_id):
         return self.get(agent_id).run_turn()
 
-    def message(self, from_id, to_id, message):
+    def message(self, from_id, to_id, message: str | AIMessage):
         sender = self.get(from_id)
         receiver = self.get(to_id)
+
+        # accepting AiMessages allows preservation of tool calls
+        if isinstance(message, str):
+            message = AIMessage(message)
 
         if sender is None or receiver is None:
             raise RuntimeError(f"Invalid sender/receiver: {sender}/{receiver}")
@@ -47,5 +51,5 @@ class AgentPool:
 
         receiver.queue_response(sender.id)
 
-        sender_chat.chat_history.append(AIMessage(message))
-        receiver_chat.chat_history.append(HumanMessage(message))
+        sender_chat.chat_history.append(message)
+        receiver_chat.chat_history.append(HumanMessage(message.content))

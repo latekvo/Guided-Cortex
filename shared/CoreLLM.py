@@ -7,7 +7,8 @@ from langchain_groq import ChatGroq
 load_dotenv()
 
 OLLAMA_MODEL = "llama3-groq-tool-use:8b"
-GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+# GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"    # cheaper
+GROQ_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"  # better
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 

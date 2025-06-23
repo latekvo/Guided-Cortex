@@ -13,8 +13,7 @@ HUMAN_MARK = Fore.GREEN
 TOOL_MARK = Fore.YELLOW
 
 LB = Back.LIGHTBLACK_EX
-LY = Back.LIGHTYELLOW_EX
-PART_SEP = f"{Style.RESET_ALL}  {LB} {LY} {Style.RESET_ALL}\n"
+PART_SEP = f"{Style.RESET_ALL}  {LB} end {Style.RESET_ALL}\n"
 
 
 def serialize_prompt_view(messages: list[BaseMessage]):
@@ -28,5 +27,11 @@ def serialize_prompt_view(messages: list[BaseMessage]):
             out += HUMAN_MARK
         elif isinstance(message, ToolMessage):
             out += TOOL_MARK
-        out += f"{message.content}{Style.RESET_ALL}{PART_SEP}"
+        out += f"{message.content}"
+        if isinstance(message, AIMessage):
+            for tool_call in message.tool_calls:
+                t_name = tool_call["name"]
+                t_args = tool_call["args"]
+                out += f"\n- [tool call]: {t_name}({t_args})"
+        out += f"{Style.RESET_ALL}{PART_SEP}"
     return out
