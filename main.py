@@ -5,6 +5,7 @@ from models.agents.general import General
 from models.agents.user import User
 from runtimes.runtime import is_linux_ok
 from shared.AgentPool import AgentPool
+from shared.logo import logo
 
 # note: We're not doing any persistent thinking functions
 #       Managers should be able to divide the tasks and respond to events,
@@ -31,6 +32,8 @@ def main():
     root_manager = General(user_agent.id, "Execute the user's orders", "Team Lead")
 
     user_agent.connect_to(root_manager.id)
+
+    print(logo)
 
     message = input(INPUT_MSG)
     AgentPool().message(user_agent.id, root_manager.id, message)

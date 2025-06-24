@@ -1,8 +1,25 @@
+<img src="./assets/banner.png"/>
+
 # Guided Cortex
 
 Guided Cortex is a hierarchical agent network.<br>
 It is a PoC for a swarm of LLMs capable of executing complex tasks
 without being hindered by context length limits, or by hallucinations.
+
+## Usage
+
+Before usage, make sure to add a `GroqCloud` API key to the `.env`.
+
+The agents unfortunately still require imperative input.  
+I'm working on making them more declarative.
+
+#### Start with a command:
+
+<img src="./assets/fizzbuzz_0.png"/>
+
+#### See how the agent hires new workers, figures out what it has to do, what the issues are, see how it automatically fixes them.
+
+<img src="./assets/fizzbuzz_1.png"/>
 
 ## Theory
 
